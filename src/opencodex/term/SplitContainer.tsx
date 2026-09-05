@@ -191,7 +191,7 @@ export function SplitContainer({
               cwd={cwd}
               active={active}
               tool={tool}
-              profileId={pr.id === firstPaneId.current ? profileId : undefined}
+              profileId={profileId}
               initialCmd={pr.id === firstPaneId.current ? initialCmd : undefined}
               onReady={(api) => registerPaneApi(pr.id, api)}
             />

@@ -43,7 +43,7 @@ export const CLI_TOOLS: CliDefinition[] = [
   { id: "hermes", name: "Hermes", command: "hermes", installedField: "hermes_installed", wires: [] },
   { id: "gemini", name: "Gemini CLI", command: "gemini", installedField: "gemini_installed", wires: [] },
   { id: "opencode", name: "OpenCode", command: "opencode", installedField: "opencode_installed", wires: [] },
-  { id: "aider", name: "Aider", command: "aider", installedField: "aider_installed", wires: ["openai_chat_completions"] },
+  { id: "aider", name: "Aider", command: "aider", installedField: "aider_installed", wires: [] },
 ];
 
 export const CLI_LAUNCH_EVENT = "opencodex:launch-cli";

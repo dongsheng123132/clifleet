@@ -27,9 +27,9 @@ OpenCodex is a Codex-style desktop workbench: pick a project folder → the main
 - **🪟 Split & run many** — split left/right or top/bottom inside one folder and run several AI CLIs for parallel, multi-process coding. Splitting only **repositions** panes; a running session is never destroyed.
 - **⚡ Real in-app terminal (PTY)** — a Rust-owned pseudo-terminal (`portable_pty`) rendered by xterm.js with **WebGL**, smooth under high-frequency TUI repaints. PATH auto-injects portable Node/Python and the global `npm` dir, so `claude` / `codex` just work. Closing a terminal **kills the whole child-process tree** — no orphans.
 - **🫳 Drag to drop paths** — drag a file / image / folder into the terminal and its real path is typed into the command line (handy for showing images to Claude Code or feeding file paths).
-- **💾 Layout memory + adjustable font** — split layout restores on relaunch; font size via `Ctrl ±` or the toolbar, persisted.
+- **💾 Layout memory + adjustable font** — split layout restores on relaunch; font size via `Ctrl ±` or AI Setup Center, persisted.
 - **📑 Slide-out panels** — from the top bar, slide out a file tree or browser; resizable and dismissable.
-- **🔑 AI Setup Center** — manage local model profiles and pair a compatible profile with each CLI. Profile launches are currently supported for Claude Code (Anthropic Messages), Codex (OpenAI Responses), and Aider (OpenAI Chat Completions). Hermes, Gemini CLI, and OpenCode stay on their own settings until deterministic profile launching is verified. OpenCodex never rewrites CLI global config, login state, or system environment variables.
+- **🔑 AI Setup Center** — manage local model profiles and pair a compatible profile with each CLI. Profile launches are currently supported for Claude Code (Anthropic Messages) and Codex (OpenAI Responses). Hermes, Gemini CLI, OpenCode, and Aider stay on their own settings until deterministic profile launching is verified. OpenCodex never rewrites CLI global config, login state, or system environment variables.
 - **🪶 Portable ZIP** — ~5.68 MB exe plus an empty `portable-data/` folder, size-first release profile (`opt-level=z` + LTO + strip), reusing the system WebView (no bundled Chromium). Separate extracted folders keep their data isolated.
 
 ## Why this exists

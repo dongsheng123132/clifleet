@@ -225,9 +225,7 @@ fn wire_supports_auth(wire_api: &str, auth_kind: &str) -> bool {
 pub fn cli_supports_wire(tool: &str, wire_api: &str) -> bool {
     matches!(
         (tool, wire_api),
-        ("claude", "anthropic_messages")
-            | ("codex", "openai_responses")
-            | ("aider", "openai_chat_completions")
+        ("claude", "anthropic_messages") | ("codex", "openai_responses")
     )
 }
 
@@ -425,30 +423,6 @@ fn launch_for_profile(tool: &str, profile: ModelProfile) -> Result<ProfileLaunch
                 model,
             ]);
         }
-        "aider" => {
-            push_env(&mut env, "OPENAI_API_KEY", "");
-            let aider_model = if model.starts_with("openai/") {
-                model
-            } else {
-                format!("openai/{model}")
-            };
-            push_env(&mut env, "AIDER_OPENAI_API_BASE", profile.base_url.trim());
-            if profile.auth_kind != "none" {
-                push_env(&mut env, "AIDER_OPENAI_API_KEY", profile.api_key);
-            } else {
-                push_env(&mut env, "AIDER_OPENAI_API_KEY", "");
-            }
-            push_env(&mut env, "AIDER_MODEL", &aider_model);
-            if !profile.small_model.trim().is_empty() {
-                let weak = if profile.small_model.starts_with("openai/") {
-                    profile.small_model
-                } else {
-                    format!("openai/{}", profile.small_model.trim())
-                };
-                push_env(&mut env, "AIDER_WEAK_MODEL", weak);
-            }
-            args.extend(["--model".into(), aider_model]);
-        }
         _ => {
             return Err(format!(
                 "{tool} 暂不支持确定性的模型档案启动；请选择沿用自身配置"
@@ -536,6 +510,7 @@ mod tests {
         assert!(!cli_supports_wire("hermes", "openai_responses"));
         assert!(!cli_supports_wire("gemini", "gemini_native"));
         assert!(!cli_supports_wire("opencode", "openai_chat_completions"));
+        assert!(!cli_supports_wire("aider", "openai_chat_completions"));
     }
 
     #[test]
@@ -565,7 +540,6 @@ mod tests {
         for (tool, wire) in [
             ("claude", "anthropic_messages"),
             ("codex", "openai_responses"),
-            ("aider", "openai_chat_completions"),
         ] {
             let launch = launch_for_profile(tool, profile(wire)).expect("supported launch");
             assert!(!launch.args.join(" ").contains("top-secret-key"));
@@ -587,25 +561,6 @@ mod tests {
         assert!(launch_for_profile("codex", profile("openai_chat_completions")).is_err());
         assert!(launch_for_profile("gemini", profile("gemini_native")).is_err());
         assert!(launch_for_profile("opencode", profile("openai_chat_completions")).is_err());
-        let mut no_auth_chat = profile("openai_chat_completions");
-        no_auth_chat.auth_kind = "none".into();
-        assert!(launch_for_profile("aider", no_auth_chat).is_err());
-    }
-
-    #[test]
-    fn aider_always_routes_gateway_models_through_openai_provider() {
-        let mut candidate = profile("openai_chat_completions");
-        candidate.model = "Qwen/Qwen3-Coder".into();
-        candidate.small_model = "deepseek-ai/DeepSeek-V3".into();
-        let launch = launch_for_profile("aider", candidate).expect("aider launch");
-        assert!(launch
-            .env
-            .iter()
-            .any(|(key, value)| key == "AIDER_MODEL" && value == "openai/Qwen/Qwen3-Coder"));
-        assert!(launch
-            .env
-            .iter()
-            .any(|(key, value)| key == "AIDER_WEAK_MODEL"
-                && value == "openai/deepseek-ai/DeepSeek-V3"));
+        assert!(launch_for_profile("aider", profile("openai_chat_completions")).is_err());
     }
 }
