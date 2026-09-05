@@ -12,6 +12,7 @@ import { dirBasename, normDir } from "./types";
 import { useWorkbench } from "./store";
 import { askConfirm } from "../lib/confirm";
 import { useI18n } from "../i18n";
+import { SETTINGS_UPDATED_EVENT, type ConfigStatus } from "../modelProfiles";
 
 /**
  * 状态灯四态（对齐 U-King 0.9.83 测试报告 #008 的 Standby 一档）。
@@ -40,6 +41,7 @@ function statusTitle(s: TaskStatus, hasHistory: boolean): string {
 const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
   { tool: "claude", name: "Claude Code", cmd: "claude" },
   { tool: "codex", name: "Codex", cmd: "codex" },
+  { tool: "hermes", name: "Hermes", cmd: "hermes" },
   { tool: "gemini", name: "Gemini CLI", cmd: "gemini" },
   { tool: "opencode", name: "opencode", cmd: "opencode" },
   { tool: "aider", name: "Aider", cmd: "aider" },
@@ -51,6 +53,21 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [modelConfig, setModelConfig] = useState<ConfigStatus | null>(null);
+  const [modelConfigLoaded, setModelConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    const reloadModelConfig = () => {
+      setModelConfigLoaded(false);
+      void invoke<ConfigStatus>("get_config")
+      .then(setModelConfig)
+      .catch(() => setModelConfig(null))
+      .finally(() => setModelConfigLoaded(true));
+    };
+    reloadModelConfig();
+    window.addEventListener(SETTINGS_UPDATED_EVENT, reloadModelConfig);
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, reloadModelConfig);
+  }, []);
 
   const importFromUking = async () => {
     if (importing) return;
@@ -156,10 +173,24 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
 
   // 新建对话：在当前激活项目下开一个 claude 会话；没有激活项目则先选文件夹建项目
   const newChat = async () => {
+    if (!modelConfigLoaded) {
+      onToast(tr("Still checking model settings…"));
+      return;
+    }
+    if (!modelConfig) {
+      onToast(tr("Could not verify model settings. Open Settings and try again."));
+      return;
+    }
+    if (modelConfig?.config_error) {
+      onToast(tr("Model settings are damaged. Open Settings to repair them before launching a CLI."));
+      return;
+    }
     const active = state.tasks.find((t) => t.id === state.activeId);
     const dir = active?.dir;
     if (dir) {
-      addSession(dir, "claude", tr("New chat"), "claude");
+      const profileId = modelConfig?.settings.assignments.claude;
+      const profile = modelConfig?.settings.profiles.find((item) => item.id === profileId);
+      addSession(dir, "claude", tr("New chat"), "claude", profileId, profile?.name);
     } else {
       await pickFolder();
     }
@@ -503,18 +534,36 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                       </button>
                       {addMenuFor === projKey && (
                         <div className="absolute right-0 top-6 z-30 w-36 rounded-card border border-overlay/[0.10] bg-bg-2 shadow-card p-1">
-                          {ADD_TOOLS.map((a) => (
-                            <button
+                          {ADD_TOOLS.map((a) => {
+                            const profileId = modelConfig?.settings.assignments[a.tool];
+                            const profile = modelConfig?.settings.profiles.find((item) => item.id === profileId);
+                            return <button
                               key={a.tool}
                               onClick={() => {
-                                addSession(projDisplayDir, a.tool, a.name, a.cmd);
+                                if (!modelConfigLoaded) {
+                                  onToast(tr("Still checking model settings…"));
+                                  setAddMenuFor(null);
+                                  return;
+                                }
+                                if (!modelConfig) {
+                                  onToast(tr("Could not verify model settings. Open Settings and try again."));
+                                  setAddMenuFor(null);
+                                  return;
+                                }
+                                if (modelConfig?.config_error) {
+                                  onToast(tr("Model settings are damaged. Open Settings to repair them before launching a CLI."));
+                                  setAddMenuFor(null);
+                                  return;
+                                }
+                                addSession(projDisplayDir, a.tool, a.name, a.cmd, profileId, profile?.name);
                                 setAddMenuFor(null);
                               }}
                               className="w-full text-left px-2 py-1.5 rounded text-[12px] text-ink-2 hover:bg-overlay/[0.05]"
                             >
-                              {a.name}
+                              <span className="block truncate">{a.name}</span>
+                              {profile && <span className="block truncate text-[9.5px] text-ink-5">{profile.name}</span>}
                             </button>
-                          ))}
+                          })}
                         </div>
                       )}
                     </div>

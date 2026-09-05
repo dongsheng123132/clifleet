@@ -22,7 +22,7 @@ rmSync(stage, { recursive: true, force: true });
 rmSync(zip, { force: true });
 mkdirSync(join(stage, "portable-data"), { recursive: true });
 cpSync(exe, join(stage, "OpenCodex.exe"));
-writeFileSync(join(stage, "portable-data", "README.txt"), "OpenCodex 的便携数据目录。\r\n\r\n首次启动后，任务、快捷项和可选的临时 Claude Code 对话路由会保存在这里。请勿把包含个人数据的此目录再次打包或分享。\r\n", "utf8");
+writeFileSync(join(stage, "portable-data", "README.txt"), "OpenCodex 的便携数据目录。\r\n\r\n首次启动后，任务、快捷项和模型档案会保存在这里。config.json 可能含 API Key，请勿把使用过的 portable-data 再次打包或分享。\r\n", "utf8");
 
 const ps = (s) => `'${s.replaceAll("'", "''")}'`;
 execFileSync("powershell.exe", [

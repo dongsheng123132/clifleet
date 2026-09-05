@@ -13,6 +13,7 @@ import type { Task } from "./types";
 import { SessionList } from "./SessionList";
 import { ChatColumn } from "./SplitArea";
 import { useI18n } from "../i18n";
+import { CLI_LAUNCH_EVENT, type CliLaunchRequest } from "../modelProfiles";
 
 type Props = {
   openedDir: string | null;
@@ -23,7 +24,7 @@ type Props = {
 
 function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
   const { t } = useI18n();
-  const { state, addTask } = useWorkbench();
+  const { state, addTask, addToolSession } = useWorkbench();
   const consumedDir = useRef<string | null>(null);
   const autoCreated = useRef(false);
   // 命令行 --open-dir 透传的目录 → 自动建会话并激活（reuse：同文件夹已有则激活）
@@ -41,6 +42,18 @@ function WorkbenchInner({ openedDir, homeDir, onToast, onGoManage }: Props) {
       void addTask(homeDir, "manual", true);
     }
   }, [state.loaded, state.tasks.length, homeDir, addTask]);
+
+  // 设置中心位于 WorkbenchProvider 外层，通过本地事件把“保存并启动”交给工作台。
+  // 事件只带 profile id/name，不带 Key；Key 由 Rust 从 OpenCodex 自己的配置中读取。
+  useEffect(() => {
+    const launch = (event: Event) => {
+      const detail = (event as CustomEvent<CliLaunchRequest>).detail;
+      if (!detail?.tool || !detail.command) return;
+      addToolSession(detail.tool, detail.name, detail.command, homeDir ?? undefined, detail.profileId, detail.profileName);
+    };
+    window.addEventListener(CLI_LAUNCH_EVENT, launch);
+    return () => window.removeEventListener(CLI_LAUNCH_EVENT, launch);
+  }, [addToolSession, homeDir]);
 
   const pickFolder = async () => {
     const dir = await openDialog({ directory: true, multiple: false, title: t("Select a project folder") });

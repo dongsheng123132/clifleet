@@ -17,7 +17,7 @@
 
 OpenCodex is a Codex-style desktop workbench: pick a project folder → the main area **is a real in-app terminal** where you run Claude Code, Codex, Gemini CLI, Aider, opencode, and other CLIs → split it left/right or top/bottom to run several at once → slide out a file tree or browser from the top bar when you need it. Everything stays alive — switching sessions never kills your terminal processes.
 
-**Fully local, open-source, bring-your-own-model.** It ships no API keys and points at no relay or server of its own. You fill in your own Base URL + API Key — any OpenAI- or Anthropic-compatible endpoint works (Anthropic, DeepSeek, Zhipu, Kimi, local ollama, whatever you run).
+**Fully local, open-source, bring-your-own-model.** It ships no API keys and points at no relay or server of its own. Model profiles stay in OpenCodex's local data folder and can be paired per CLI. Unpaired CLIs keep their own configuration.
 
 ![OpenCodex main UI — a 2×2 terminal split inside one folder](docs/screenshot-main.png)
 
@@ -29,7 +29,7 @@ OpenCodex is a Codex-style desktop workbench: pick a project folder → the main
 - **🫳 Drag to drop paths** — drag a file / image / folder into the terminal and its real path is typed into the command line (handy for showing images to Claude Code or feeding file paths).
 - **💾 Layout memory + adjustable font** — split layout restores on relaunch; font size via `Ctrl ±` or the toolbar, persisted.
 - **📑 Slide-out panels** — from the top bar, slide out a file tree or browser; resizable and dismissable.
-- **🔑 AI Setup Center** — see which local AI CLIs are detected and keep each one on its own existing configuration. Optionally set a compatible endpoint for OpenCodex's structured Claude Code chat only; it never touches terminal sessions, CLI global config, login state, or system environment variables.
+- **🔑 AI Setup Center** — manage local model profiles and pair a compatible profile with each CLI. Profile launches are currently supported for Claude Code (Anthropic Messages), Codex (OpenAI Responses), and Aider (OpenAI Chat Completions). Hermes, Gemini CLI, and OpenCode stay on their own settings until deterministic profile launching is verified. OpenCodex never rewrites CLI global config, login state, or system environment variables.
 - **🪶 Portable ZIP** — ~5.68 MB exe plus an empty `portable-data/` folder, size-first release profile (`opt-level=z` + LTO + strip), reusing the system WebView (no bundled Chromium). Separate extracted folders keep their data isolated.
 
 ## Why this exists
@@ -57,7 +57,7 @@ cargo run -- --term-test "node --version"
 ## Usage
 
 1. Launch OpenCodex.
-2. Top-right **AI Setup Center** shows detected CLIs and leaves each CLI on its own configuration. Optionally enable a temporary compatible endpoint for OpenCodex's structured Claude Code chat (presets available); terminal sessions stay untouched.
+2. Top-right **AI Setup Center** lets you create model profiles and pair them with compatible CLIs. The default is always **Use CLI's own settings**.
 3. Run any CLI in the terminal — `claude`, `codex`, `gemini`, `aider`, `opencode`… If one isn't installed, install it right there in a terminal pane (e.g. `npm i -g @anthropic-ai/claude-code`).
 4. **New project** → pick a folder → start working. Split for more terminals; slide out files / browser when needed.
 

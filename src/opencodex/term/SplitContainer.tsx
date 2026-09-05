@@ -37,6 +37,7 @@ export function SplitContainer({
   cwd,
   active,
   tool,
+  profileId,
   initialCmd,
   storageKey,
   onReady,
@@ -44,6 +45,7 @@ export function SplitContainer({
   cwd: string;
   active: boolean;
   tool?: string;
+  profileId?: string;
   initialCmd?: string;
   /** 传了就把分屏布局形状落盘（key 通常用 task.id），关 App 重开恢复格子排布。 */
   storageKey?: string;
@@ -189,6 +191,7 @@ export function SplitContainer({
               cwd={cwd}
               active={active}
               tool={tool}
+              profileId={pr.id === firstPaneId.current ? profileId : undefined}
               initialCmd={pr.id === firstPaneId.current ? initialCmd : undefined}
               onReady={(api) => registerPaneApi(pr.id, api)}
             />

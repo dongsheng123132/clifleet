@@ -33,12 +33,14 @@ export function TermPanel({
   cwd,
   active,
   tool,
+  profileId,
   initialCmd,
   onReady,
 }: {
   cwd: string;
   active: boolean;
   tool?: string;
+  profileId?: string;
   initialCmd?: string;
   /** 挂载后回调，透出 runCmd 给父级（一键启动 WebUI 等场景）。 */
   onReady?: (api: TermPanelApi) => void;
@@ -51,6 +53,7 @@ export function TermPanel({
     open: active,
     cwd,
     tool,
+    profileId,
     initialCmd,
   });
   const showCodexHistory = tool === "codex" || /^\s*codex(?:\.exe)?(?:\s|$)/i.test(activeCommand ?? "");

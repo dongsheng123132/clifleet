@@ -77,12 +77,14 @@ export function useTermGroup(opts: {
   cwd?: string;
   /** 给本 group 的 PTY 打工具 tag（claude/openclaw…），运行面板 list_running 据此识别 */
   tool?: string;
+  /** 显式档案 id；有值时后端直接启动 CLI，失败则拒绝，不回退。 */
+  profileId?: string;
   /** 首个终端自动跑的启动命令（工具型会话用，如 "openclaw gateway run"）。过后端白名单。 */
   initialCmd?: string;
   pendingCmd?: string | null;
   onConsumedCmd?: () => void;
 }): TermGroup {
-  const { open, cwd, tool, initialCmd, pendingCmd, onConsumedCmd } = opts;
+  const { open, cwd, tool, profileId, initialCmd, pendingCmd, onConsumedCmd } = opts;
   const hostRef = useRef<HTMLDivElement>(null);
   const sessionsRef = useRef<TermSession[]>([]);
   const seqRef = useRef(0); // 实例内序号，不共用模块全局
@@ -90,6 +92,8 @@ export function useTermGroup(opts: {
   cwdRef.current = cwd;
   const toolRef = useRef(tool);
   toolRef.current = tool;
+  const profileIdRef = useRef(profileId);
+  profileIdRef.current = profileId;
   // 启动命令只在首个终端下发一次
   const initialCmdRef = useRef(initialCmd);
   const initialFiredRef = useRef(false);
@@ -203,6 +207,7 @@ export function useTermGroup(opts: {
         initialCmd: initCmd,
         cwd: cwdRef.current ?? null,
         tool: toolRef.current ?? null,
+        profileId: profileIdRef.current ?? null,
       });
       s.sessionId = sid;
       return sid;

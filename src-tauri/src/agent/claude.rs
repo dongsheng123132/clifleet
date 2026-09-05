@@ -22,7 +22,6 @@ use std::sync::{Mutex, OnceLock};
 use serde_json::Value;
 use tauri::ipc::Channel;
 
-use crate::config;
 use crate::kv;
 use crate::paths::{path_prefix, resolve_exe};
 use crate::proxy;
@@ -99,7 +98,6 @@ fn base_command(program: &str) -> std::process::Command {
 /// 前置便携工具目录（与 term / config 同口径），让 `claude` 可解析。
 fn inject_path(c: &mut std::process::Command) {
     c.env("PATH", path_prefix());
-    config::apply_model_env_to_command(c);
     proxy::apply_to_command(c);
 }
 
