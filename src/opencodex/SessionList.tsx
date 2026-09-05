@@ -4,7 +4,7 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, Wrench, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, Wrench, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
@@ -683,10 +683,6 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
           <span className="ml-auto shrink-0 text-[9.5px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-overlay/[0.04]" title={tr("OpenCodex version")}>
             v{__APP_VERSION__}
           </span>
-        </div>
-        <div className="flex items-center gap-1.5 px-3 pb-2 text-[10px] text-ink-5">
-          <Activity size={10} className={state.tasks.some((task) => task.status === "running") ? "text-success-400" : ""} />
-          {tr("{n} terminal(s) running", { n: state.tasks.filter((task) => task.status === "running").length })}
         </div>
       </div>
 

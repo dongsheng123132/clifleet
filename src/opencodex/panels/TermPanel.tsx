@@ -46,7 +46,7 @@ export function TermPanel({
   const { t } = useI18n();
   const {
     hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive,
-    fontSize, bumpFontSize, resetActive, activeCommand,
+    resetActive, activeCommand,
   } = useTermGroup({
     open: active,
     cwd,
@@ -225,26 +225,6 @@ export function TermPanel({
           >
             <Plus size={14} />
           </button>
-          {/* 字号调节：A- / 当前值 / A+（也可用 Ctrl +/- 调，Ctrl 0 复位） */}
-          <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0">
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => bumpFontSize(-1)}
-              title={t("Decrease font size (Ctrl -)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
-            >
-              −
-            </button>
-            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title={t("Current font size")}>{fontSize}</span>
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => bumpFontSize(1)}
-              title={t("Increase font size (Ctrl +)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
-            >
-              +
-            </button>
-          </div>
           {/* 重置终端：一键清掉 TUI 崩溃残留的卡死模式（鼠标坐标乱码/花屏/粘贴异常/光标消失/方向键错乱）。
               只重置 xterm 模拟器自身，不清屏、不碰 shell → 零副作用，卡住了随手点一下（或 Ctrl+Shift+R）。 */}
           <div className="flex items-center ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0">
@@ -273,7 +253,7 @@ export function TermPanel({
               少一次焦点抖动）。焦点上报泄漏（DECSET 1004 卡死 → \e[O/\e[I 污染命令成 `[Occd`/`> I`）
               的根治不在这里，而在 useTermGroup 的 term.onData 出口统一吞掉裸焦点序列——那才覆盖
               所有焦点来源（alt-tab、点文件树/对话、切窗口…），不止快捷按钮这一个口子。 */}
-          <div className="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 no-scrollbar">
+          <div className="flex items-center justify-end gap-1 min-w-0 overflow-x-auto flex-1 no-scrollbar">
             {quickCmds.map((q) => (
               <span
                 key={q.label}

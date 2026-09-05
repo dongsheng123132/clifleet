@@ -10,6 +10,14 @@ import { useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Bot, CheckCircle2, Circle, Info, Save, X } from "lucide-react";
 import { useI18n } from "../i18n";
+import {
+  clampTerminalFontSize,
+  DEFAULT_TERMINAL_FONT_SIZE,
+  MAX_TERMINAL_FONT_SIZE,
+  MIN_TERMINAL_FONT_SIZE,
+  TERMINAL_FONT_SIZE_EVENT,
+  TERMINAL_FONT_SIZE_KEY,
+} from "../opencodex/term/displaySettings";
 
 type ModelConfig = {
   base_url: string;
@@ -52,6 +60,7 @@ export function SettingsDialog({ onToast, onClose, dataDir, portable }: { onToas
   const [form, setForm] = useState<ModelConfig>(EMPTY_CONFIG);
   const [overrideEnabled, setOverrideEnabled] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [terminalFontSize, setTerminalFontSize] = useState(DEFAULT_TERMINAL_FONT_SIZE);
 
   useEffect(() => {
     invoke<ConfigStatus>("get_config")
@@ -61,7 +70,20 @@ export function SettingsDialog({ onToast, onClose, dataDir, portable }: { onToas
         setOverrideEnabled(s.ready);
       })
       .catch(() => {});
+    invoke<string | null>("kv_get", { key: TERMINAL_FONT_SIZE_KEY })
+      .then((value) => {
+        const size = value ? Number(value) : NaN;
+        if (Number.isFinite(size)) setTerminalFontSize(clampTerminalFontSize(size));
+      })
+      .catch(() => {});
   }, []);
+
+  const updateTerminalFontSize = (value: number) => {
+    const next = clampTerminalFontSize(value);
+    setTerminalFontSize(next);
+    void invoke("kv_set", { key: TERMINAL_FONT_SIZE_KEY, value: String(next) }).catch(() => {});
+    window.dispatchEvent(new CustomEvent<number>(TERMINAL_FONT_SIZE_EVENT, { detail: next }));
+  };
 
   const set = (k: keyof ModelConfig) => (e: React.ChangeEvent<HTMLInputElement>) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const applyPreset = (p: (typeof PRESETS)[number]) => {
@@ -97,6 +119,19 @@ export function SettingsDialog({ onToast, onClose, dataDir, portable }: { onToas
         </header>
 
         <div className="px-5 py-4 space-y-5">
+          <section className="space-y-2">
+            <div>
+              <div className="text-[11px] font-semibold uppercase tracking-wider text-ink-4">{t("Terminal display")}</div>
+              <p className="mt-1 text-[11px] leading-relaxed text-ink-5">{t("Applies to every terminal in OpenCodex and is saved locally. Terminal shortcuts Ctrl/Cmd + -, +, and 0 still work.")}</p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button onClick={() => updateTerminalFontSize(terminalFontSize - 1)} disabled={terminalFontSize <= MIN_TERMINAL_FONT_SIZE} className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-overlay/[0.10] text-ink-2 text-[17px] hover:bg-overlay/[0.04] disabled:opacity-40" aria-label={t("Decrease terminal font size")}>−</button>
+              <output className="min-w-16 h-8 px-3 inline-flex items-center justify-center rounded-md bg-overlay/[0.05] text-[13px] font-medium tabular-nums text-ink-1">{terminalFontSize}px</output>
+              <button onClick={() => updateTerminalFontSize(terminalFontSize + 1)} disabled={terminalFontSize >= MAX_TERMINAL_FONT_SIZE} className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-overlay/[0.10] text-ink-2 text-[17px] hover:bg-overlay/[0.04] disabled:opacity-40" aria-label={t("Increase terminal font size")}>+</button>
+              <button onClick={() => updateTerminalFontSize(DEFAULT_TERMINAL_FONT_SIZE)} disabled={terminalFontSize === DEFAULT_TERMINAL_FONT_SIZE} className="ml-1 h-8 px-2.5 rounded-md border border-overlay/[0.10] text-[12px] text-ink-3 hover:bg-overlay/[0.04] hover:text-ink-1 disabled:opacity-40">{t("Reset")}</button>
+            </div>
+          </section>
+
           <section className="rounded-lg border border-overlay/[0.08] bg-overlay/[0.025] px-3.5 py-3">
             <div className="flex items-center gap-2 text-[12px] font-medium text-ink-1"><Info size={14} className="text-accent shrink-0" />{t("Your CLI stays in charge")}</div>
             <p className="mt-1 text-[11px] leading-relaxed text-ink-4">{t("OpenCodex only detects these tools. Unless you explicitly enable the optional Claude Code route below, every CLI uses its own existing default configuration. OpenCodex never writes Claude, Codex, Hermes, Gemini, OpenCode, or system settings.")}</p>

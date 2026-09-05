@@ -14,6 +14,12 @@ import { invoke, Channel } from "@tauri-apps/api/core";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import {
+  clampTerminalFontSize,
+  DEFAULT_TERMINAL_FONT_SIZE,
+  TERMINAL_FONT_SIZE_EVENT,
+  TERMINAL_FONT_SIZE_KEY,
+} from "./displaySettings";
 
 // 软重置序列 —— 把终端各种「上报/屏幕」私有模式打回默认。专治 claude/codex 等 TUI 崩溃/被杀后
 // 没机会清理留下的卡死状态:鼠标坐标乱码、备用屏花屏、括号粘贴异常、光标消失、方向键错乱。
@@ -53,8 +59,6 @@ export type TermGroup = {
   runInActive: (cmd: string) => void;
   /** 往当前激活终端写入原始文本（不回车）——拖放落路径用，光标停在文本后，用户可继续打字 */
   pasteToActive: (text: string) => void;
-  /** 当前终端字号 */
-  fontSize: number;
   /** 调字号（delta 正负）：应用到本 group 所有终端 + 存盘 */
   bumpFontSize: (delta: number) => void;
   /** 软重置当前终端：清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失等），不清屏不碰 shell */
@@ -90,8 +94,7 @@ export function useTermGroup(opts: {
   const initialCmdRef = useRef(initialCmd);
   const initialFiredRef = useRef(false);
   // 终端字号（默认 14；全局共享，落盘 kv "term_font_size"，所有终端统一）
-  const fontSizeRef = useRef(14);
-  const [fontSize, setFontSizeState] = useState(14);
+  const fontSizeRef = useRef(DEFAULT_TERMINAL_FONT_SIZE);
   const [tabs, setTabs] = useState<{ key: number; title: string }[]>([]);
   const [activeKey, setActiveKeyState] = useState<number | null>(null);
   const [activeCommand, setActiveCommand] = useState<string | null>(null);
@@ -136,37 +139,40 @@ export function useTermGroup(opts: {
     });
   }, []);
 
-  // 加载持久化字号（一次）
-  useEffect(() => {
-    void invoke<string | null>("kv_get", { key: "term_font_size" })
-      .then((v) => {
-        const n = v ? parseInt(v, 10) : NaN;
-        if (!isNaN(n) && n >= 9 && n <= 28) {
-          fontSizeRef.current = n;
-          setFontSizeState(n);
-          for (const s of sessionsRef.current) s.term.options.fontSize = n;
-          fitActive();
-        }
-      })
-      .catch(() => {});
+  const setTerminalFontSize = useCallback((value: number, persist: boolean) => {
+    const next = clampTerminalFontSize(value);
+    if (next === fontSizeRef.current) return;
+    fontSizeRef.current = next;
+    for (const s of sessionsRef.current) {
+      s.term.options.fontSize = next;
+      s.lastCols = -1;
+    }
+    if (persist) void invoke("kv_set", { key: TERMINAL_FONT_SIZE_KEY, value: String(next) }).catch(() => {});
+    fitActive();
   }, [fitActive]);
 
+  // 首次加载保存值；设置中心改动时同步全部已经打开的终端组。
+  useEffect(() => {
+    void invoke<string | null>("kv_get", { key: TERMINAL_FONT_SIZE_KEY })
+      .then((v) => {
+        const n = v ? Number(v) : NaN;
+        if (Number.isFinite(n)) setTerminalFontSize(n, false);
+      })
+      .catch(() => {});
+    const onFontSize = (event: Event) => {
+      const value = (event as CustomEvent<number>).detail;
+      if (typeof value === "number") setTerminalFontSize(value, false);
+    };
+    window.addEventListener(TERMINAL_FONT_SIZE_EVENT, onFontSize);
+    return () => window.removeEventListener(TERMINAL_FONT_SIZE_EVENT, onFontSize);
+  }, [setTerminalFontSize]);
+
   // 调字号（delta 正负，或绝对值）：应用到本 group 所有终端 + 存盘 + 重 fit
-  const bumpFontSize = useCallback(
-    (delta: number) => {
-      const next = Math.min(28, Math.max(9, fontSizeRef.current + delta));
-      if (next === fontSizeRef.current) return;
-      fontSizeRef.current = next;
-      setFontSizeState(next);
-      for (const s of sessionsRef.current) {
-        s.term.options.fontSize = next;
-        s.lastCols = -1; // 强制下次 fit 重算（字号变了行列数会变）
-      }
-      void invoke("kv_set", { key: "term_font_size", value: String(next) }).catch(() => {});
-      fitActive();
-    },
-    [fitActive],
-  );
+  const bumpFontSize = useCallback((delta: number) => {
+    const next = clampTerminalFontSize(fontSizeRef.current + delta);
+    setTerminalFontSize(next, true);
+    window.dispatchEvent(new CustomEvent<number>(TERMINAL_FONT_SIZE_EVENT, { detail: next }));
+  }, [setTerminalFontSize]);
 
   // 起一个 PTY（懒启动）。返回 sessionId。
   const ensurePty = useCallback(async (s: TermSession): Promise<string | null> => {
@@ -223,6 +229,7 @@ export function useTermGroup(opts: {
       lineHeight: 1.2,
       cursorBlink: true,
       scrollback: 5000,
+      // 不传 theme：采用 xterm 原生 ANSI 默认值，让每个 CLI/TUI 自己决定配色。
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -326,7 +333,7 @@ export function useTermGroup(opts: {
         return false;
       }
       if (mod && e.key === "0") {
-        bumpFontSize(14 - fontSizeRef.current);
+        bumpFontSize(DEFAULT_TERMINAL_FONT_SIZE - fontSizeRef.current);
         return false;
       }
       // 软重置（Ctrl/Cmd+Shift+R）：一键清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失…）。
@@ -517,6 +524,6 @@ export function useTermGroup(opts: {
 
   return {
     hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive,
-    fontSize, bumpFontSize, resetActive, activeCommand,
+    bumpFontSize, resetActive, activeCommand,
   };
 }
