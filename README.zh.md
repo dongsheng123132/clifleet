@@ -6,7 +6,7 @@
 
 OpenCodex 是一个 Codex 同款体验的桌面工作台：选一个项目文件夹 → 主区直接是**应用内真终端**，跑 Claude Code / Codex 等 CLI → 随手左右/上下分屏多开 → 需要时从顶栏滑出文件树、浏览器。常驻保活，切会话不杀终端进程。
 
-完全本地、开源、**自带模型**：不内置任何 API Key、不指向任何中转/服务器。各 CLI 默认沿用自己的配置；需要时可只为 OpenCodex 的结构化 Claude Code 对话填写自己的 Anthropic 兼容端点与 Key。
+完全本地、开源、**自带模型**：不内置任何 API Key、不指向任何中转/服务器。模型档案只保存在 OpenCodex 本地数据目录，可逐个搭配给 CLI；未搭配的 CLI 始终沿用自己的配置。
 
 ![OpenCodex 主界面 —— 一个文件夹里 2×2 分屏开多个终端](docs/screenshot-main.png)
 
@@ -49,9 +49,9 @@ Codex 这类工具，可以说是 AI 发展史上的第一辆「自动挡汽车�
 - **多终端分屏多开**：一个文件夹里左右/上下分屏开多个终端，同时跑多个 Claude Code 等 CLI 做多进程编程。分屏只挪位置不重建，**正在跑的终端永不被杀**。
 - **应用内真终端（PTY）**：Rust 起伪终端（`portable_pty`），前端 xterm.js + **WebGL 渲染**（高频 TUI 刷新顺滑）。PATH 自动注入便携 Node/Python 与 `npm` 全局目录，`claude`/`codex` 等可直接跑。关闭终端**连子进程树一起清**，不留孤儿进程。
 - **拖放落路径**：把文件 / 图片 / 文件夹拖进终端 → 真实路径自动填进命令行（贴图给 Claude Code 看、喂文件路径都顺手）。
-- **布局记忆 + 字号可调**：分屏排布关 App 重开自动恢复；字号 `Ctrl ±` / 标签栏按钮实时调，存盘统一。
+- **布局记忆 + 字号可调**：分屏排布关 App 重开自动恢复；字号可用 `Ctrl ±` 或在设置中心调整并持久保存。
 - **滑出式面板**：顶栏点一下，从右侧滑出文件树 / 浏览器，可拖宽、可收起。
-- **AI 设置中心**：先展示本机检测到的 AI CLI，每个 CLI 默认沿用自身配置。可选为 OpenCodex 的结构化 Claude Code 对话填写兼容端点；不修改终端、Claude Code 登录态、CLI 全局配置或系统环境变量。
+- **AI 设置中心**：集中管理多个模型档案，并逐个搭配给兼容的 CLI。0.4.3 已开放 Claude Code（Anthropic Messages）和 Codex（OpenAI Responses）；Hermes、Gemini CLI、OpenCode、Aider 在确定性启动适配完成前仍沿用自身设置。OpenCodex 不改 CLI 全局配置、登录态或系统环境变量。
 - **绿色 ZIP**：约 5.68MB 的 exe 加空白 `portable-data/`，体积优先的 release profile（`opt-level=z` + LTO + strip），复用系统 WebView 不打包浏览器内核；解压到不同文件夹即可隔离数据。
 
 ## 技术栈
@@ -76,7 +76,7 @@ cargo run -- --term-test "node --version"
 ## 使用
 
 1. 启动 OpenCodex。
-2. 右上角「AI 设置中心」会显示已检测的 CLI，并保持各 CLI 自己的配置。若需要，可为 OpenCodex 的结构化 Claude Code 对话启用临时兼容端点（可点预设快速填充）；终端不受影响。
+2. 右上角「AI 设置中心」可建立模型档案，再搭配给兼容的 CLI；默认始终是「沿用 CLI 自身配置」。
 3. 终端里就能跑 `claude` / `codex` / `gemini` / `aider` / `opencode` 等 CLI —— 没装的话在终端面板里装一下（如 `npm i -g @anthropic-ai/claude-code`）。
 4. 「新建项目」选一个文件夹 → 开干。需要时从顶栏开终端 / 文件 / 浏览器。
 

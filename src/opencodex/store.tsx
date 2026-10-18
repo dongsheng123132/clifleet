@@ -122,9 +122,9 @@ type Ctx = {
    *  reuse=false（手动新建）每次都新开一个会话。 */
   addTask: (dir: string, source?: TaskSource, reuse?: boolean) => Promise<void>;
   /** 在某项目（dir）下新开一个绑工具的会话（claude/codex/openclaw…）。 */
-  addSession: (dir: string, tool: string, name: string, startupCmd: string) => void;
+  addSession: (dir: string, tool: string, name: string, startupCmd: string, profileId?: string, profileName?: string) => void;
   /** 启动一个工具型会话（无项目文件夹，从「我的 AI」运行面板点启动）。 */
-  addToolSession: (tool: string, name: string, startupCmd: string, dir?: string) => void;
+  addToolSession: (tool: string, name: string, startupCmd: string, dir?: string, profileId?: string, profileName?: string) => void;
   removeTask: (id: string) => Promise<void>;
   /** 删除整个项目下的所有会话（一次性，二次确认在 UI 层）。仍不动磁盘文件夹。 */
   removeProject: (ids: string[]) => Promise<void>;
@@ -215,7 +215,7 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
   );
 
   // 在某项目（dir）下新开一个绑工具的会话（不落盘，运行时实例）
-  const addSession = useCallback((dir: string, tool: string, name: string, startupCmd: string) => {
+  const addSession = useCallback((dir: string, tool: string, name: string, startupCmd: string, profileId?: string, profileName?: string) => {
     const now = Date.now();
     const task: Task = {
       id: `sess-tool-${tool}-${++seq.current}`,
@@ -229,6 +229,8 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
       created_at: now,
       tool,
       startup_cmd: startupCmd,
+      profile_id: profileId ?? null,
+      profile_name: profileName ?? null,
       kind: "tool",
       project: dir ? normDir(dir) : null,
     };
@@ -237,8 +239,8 @@ export function WorkbenchProvider({ children }: { children: React.ReactNode }) {
 
   // 无项目文件夹的工具会话（运行面板点启动）
   const addToolSession = useCallback(
-    (tool: string, name: string, startupCmd: string, dir?: string) => {
-      addSession(dir ?? "", tool, name, startupCmd);
+    (tool: string, name: string, startupCmd: string, dir?: string, profileId?: string, profileName?: string) => {
+      addSession(dir ?? "", tool, name, startupCmd, profileId, profileName);
     },
     [addSession],
   );

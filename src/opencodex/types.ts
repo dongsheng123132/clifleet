@@ -29,6 +29,8 @@ export interface Task {
   // —— Phase 7：工具型会话（从「我的 AI」运行面板启动的工具实例）——
   tool?: string | null; // claude/codex/openclaw/hermes…；任务型为空
   startup_cmd?: string | null; // 启动命令（如 "openclaw gateway run"）
+  profile_id?: string | null; // 显式档案启动；空值表示沿用 CLI 自身配置
+  profile_name?: string | null; // 启动时的展示名（不含 Key）
   kind?: "task" | "tool"; // 默认 task
   // —— Phase 8：项目分组键（=规范化 dir）。同一文件夹可开多个会话，左侧按 project 分组 ——
   project?: string | null;

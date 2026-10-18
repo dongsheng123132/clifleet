@@ -46,6 +46,12 @@ pub struct Task {
     /// Phase 7：启动命令（如 "openclaw gateway run"）
     #[serde(default)]
     pub startup_cmd: Option<String>,
+    /// 显式模型档案 id；不含密钥。None = 沿用 CLI 自身配置。
+    #[serde(default)]
+    pub profile_id: Option<String>,
+    /// 启动时用于 UI 展示的档案名；不参与认证。
+    #[serde(default)]
+    pub profile_name: Option<String>,
     /// Phase 7：task | tool（default task）
     #[serde(default = "default_kind")]
     pub kind: String,
@@ -321,7 +327,8 @@ mod tests {
         Task {
             id: id.into(), name: id.into(), dir: dir.into(), status: "idle".into(), source: "manual".into(),
             assignee: None, external_ref: None, last_opened_at, created_at: last_opened_at,
-            tool: None, startup_cmd: None, kind: "task".into(), order, project: None,
+            tool: None, startup_cmd: None, profile_id: None, profile_name: None,
+            kind: "task".into(), order, project: None,
             worktree_repo: None, worktree_branch: None,
         }
     }

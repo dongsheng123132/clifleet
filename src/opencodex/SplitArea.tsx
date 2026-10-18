@@ -98,6 +98,11 @@ export function ChatColumn({
             {task.tool}
           </span>
         )}
+        {task.tool && (
+          <span className="text-[10px] px-1.5 py-0.5 rounded bg-overlay/[0.05] text-ink-4 shrink-0 max-w-40 truncate" title={task.profile_name ?? t("CLI own settings")}>
+            {task.profile_name ?? t("CLI own settings")}
+          </span>
+        )}
         <span className="text-ink-5 text-[11px] truncate max-w-[30%] font-mono hidden lg:inline" title={task.dir}>
           {task.dir}
         </span>
@@ -161,8 +166,9 @@ export function ChatColumn({
             cwd={task.dir}
             active={active}
             tool={task.tool ?? undefined}
+            profileId={task.profile_id ?? undefined}
             initialCmd={task.startup_cmd ?? undefined}
-            storageKey={task.id}
+            storageKey={task.kind === "tool" ? undefined : task.id}
             onReady={onSplitReady}
           />
         </div>

@@ -1,68 +1,62 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, type ReactNode } from "react";
 
-export type ThemePreference = "system" | "light" | "dark";
-type ResolvedTheme = Exclude<ThemePreference, "system">;
+/** 主题三态：跟随系统 / 浅色 / 深色。只影响工作台配色；终端没有 theme 覆盖，CLI/TUI 保有原生 ANSI 配色。 */
+export type Theme = "system" | "light" | "dark";
 
-const STORE_KEY = "opencodex.theme";
+const THEME_KEY = "opencodex.theme";
 
-function readPreference(): ThemePreference {
+/** 读持久化的主题选择；没有则跟随系统。 */
+export function readTheme(): Theme {
   try {
-    const saved = localStorage.getItem(STORE_KEY);
-    if (saved === "light" || saved === "dark" || saved === "system") return saved;
+    const saved = localStorage.getItem(THEME_KEY);
+    if (saved === "system" || saved === "light" || saved === "dark") return saved;
   } catch {
-    /* localStorage 不可用时跟随系统 */
+    /* localStorage 不可用时静默回退 */
   }
   return "system";
 }
 
-function systemTheme(): ResolvedTheme {
-  return window.matchMedia?.("(prefers-color-scheme: light)").matches ? "light" : "dark";
+/** 把主题落到 DOM（data-theme + .dark + color-scheme）。system 态按系统偏好解析成 light/dark。 */
+export function applyTheme(theme: Theme): void {
+  const root = document.documentElement;
+  let prefersDark = false;
+  try {
+    prefersDark = window.matchMedia("(prefers-color-scheme: dark)").matches;
+  } catch {
+    /* ignore */
+  }
+  const dark = theme === "dark" || (theme === "system" && prefersDark);
+  root.dataset.theme = dark ? "dark" : "light";
+  root.classList.toggle("dark", dark);
+  root.style.colorScheme = dark ? "dark" : "light";
 }
 
-function applyTheme(preference: ThemePreference): ResolvedTheme {
-  const resolved = preference === "system" ? systemTheme() : preference;
-  document.documentElement.dataset.theme = resolved;
-  document.documentElement.classList.toggle("dark", resolved === "dark");
-  document.documentElement.style.colorScheme = resolved;
-  return resolved;
+/** 选择并持久化主题（设置中心「外观」页用）。 */
+export function setTheme(theme: Theme): void {
+  try {
+    localStorage.setItem(THEME_KEY, theme);
+  } catch {
+    /* ignore */
+  }
+  applyTheme(theme);
 }
-
-type ThemeContextValue = {
-  preference: ThemePreference;
-  resolved: ResolvedTheme;
-  setPreference: (preference: ThemePreference) => void;
-};
-
-const ThemeContext = createContext<ThemeContextValue | null>(null);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [preference, setPreferenceState] = useState<ThemePreference>(readPreference);
-  const [resolved, setResolved] = useState<ResolvedTheme>(() => applyTheme(preference));
-
-  const setPreference = useCallback((next: ThemePreference) => {
-    setPreferenceState(next);
+  useEffect(() => {
+    applyTheme(readTheme());
+    // 跟随系统时，系统配色变化要实时生效（浅/深/跟随三态才名副其实）。
+    let mq: MediaQueryList | null = null;
     try {
-      localStorage.setItem(STORE_KEY, next);
+      mq = window.matchMedia("(prefers-color-scheme: dark)");
+      const onChange = () => {
+        if (readTheme() === "system") applyTheme("system");
+      };
+      mq.addEventListener("change", onChange);
+      return () => mq?.removeEventListener("change", onChange);
     } catch {
-      /* 主题仍在本次会话生效 */
+      /* 旧内核无 addEventListener 时放弃实时跟随 */
+      return undefined;
     }
   }, []);
-
-  useEffect(() => {
-    setResolved(applyTheme(preference));
-    if (preference !== "system") return;
-    const media = window.matchMedia("(prefers-color-scheme: light)");
-    const onChange = () => setResolved(applyTheme("system"));
-    media.addEventListener("change", onChange);
-    return () => media.removeEventListener("change", onChange);
-  }, [preference]);
-
-  const value = useMemo(() => ({ preference, resolved, setPreference }), [preference, resolved, setPreference]);
-  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
-}
-
-export function useTheme(): ThemeContextValue {
-  const value = useContext(ThemeContext);
-  if (!value) throw new Error("useTheme 必须在 <ThemeProvider> 内使用");
-  return value;
+  return <>{children}</>;
 }

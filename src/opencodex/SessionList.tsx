@@ -4,7 +4,7 @@
  * status 小圆点：idle 灰 / running 绿 / error 红。
  */
 import { useEffect, useMemo, useRef, useState } from "react";
-import { Activity, ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, Wrench, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ChevronsLeft, ChevronsRight, Download, FolderPlus, GitBranch, GripVertical, MessageSquarePlus, Plus, Trash2, Wrench, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import type { Task, TaskStatus } from "./types";
@@ -12,6 +12,7 @@ import { dirBasename, normDir } from "./types";
 import { useWorkbench } from "./store";
 import { askConfirm } from "../lib/confirm";
 import { useI18n } from "../i18n";
+import { SETTINGS_UPDATED_EVENT, type ConfigStatus } from "../modelProfiles";
 
 /**
  * 状态灯四态（对齐 U-King 0.9.83 测试报告 #008 的 Standby 一档）。
@@ -40,6 +41,7 @@ function statusTitle(s: TaskStatus, hasHistory: boolean): string {
 const ADD_TOOLS: { tool: string; name: string; cmd: string }[] = [
   { tool: "claude", name: "Claude Code", cmd: "claude" },
   { tool: "codex", name: "Codex", cmd: "codex" },
+  { tool: "hermes", name: "Hermes", cmd: "hermes" },
   { tool: "gemini", name: "Gemini CLI", cmd: "gemini" },
   { tool: "opencode", name: "opencode", cmd: "opencode" },
   { tool: "aider", name: "Aider", cmd: "aider" },
@@ -51,6 +53,21 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
     useWorkbench();
   const [addMenuFor, setAddMenuFor] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
+  const [modelConfig, setModelConfig] = useState<ConfigStatus | null>(null);
+  const [modelConfigLoaded, setModelConfigLoaded] = useState(false);
+
+  useEffect(() => {
+    const reloadModelConfig = () => {
+      setModelConfigLoaded(false);
+      void invoke<ConfigStatus>("get_config")
+      .then(setModelConfig)
+      .catch(() => setModelConfig(null))
+      .finally(() => setModelConfigLoaded(true));
+    };
+    reloadModelConfig();
+    window.addEventListener(SETTINGS_UPDATED_EVENT, reloadModelConfig);
+    return () => window.removeEventListener(SETTINGS_UPDATED_EVENT, reloadModelConfig);
+  }, []);
 
   const importFromUking = async () => {
     if (importing) return;
@@ -139,15 +156,12 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
   };
 
   // 拖拽排序：dragRef 存当前拖的是「项目组」还是「组内会话」；over* 仅作落点高亮。
-  // 用原生 HTML5 拖拽，不引第三方库（守体积红线）。
+  // 用指针拖拽（grip 把手 + elementFromPoint 命中），不引第三方库（守体积红线）。
+  // 不能再用 HTML5 drag：dragDropEnabled 必须 true 才能收到「文件拖入终端」事件，而开了之后
+  // Windows 上 HTML5 内部拖拽被原生 drop handler 接管、不再触发（见 TermPanel 同款说明）。
   const dragRef = useRef<{ kind: "group" | "session"; key: string; group?: string } | null>(null);
   const [overGroup, setOverGroup] = useState<string | null>(null);
   const [overSession, setOverSession] = useState<string | null>(null);
-  const clearDrag = () => {
-    dragRef.current = null;
-    setOverGroup(null);
-    setOverSession(null);
-  };
 
   const pickFolder = async () => {
     const dir = await openDialog({ directory: true, multiple: false, title: tr("Select a project folder") });
@@ -156,10 +170,24 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
 
   // 新建对话：在当前激活项目下开一个 claude 会话；没有激活项目则先选文件夹建项目
   const newChat = async () => {
+    if (!modelConfigLoaded) {
+      onToast(tr("Still checking model settings…"));
+      return;
+    }
+    if (!modelConfig) {
+      onToast(tr("Could not verify model settings. Open Settings and try again."));
+      return;
+    }
+    if (modelConfig?.config_error) {
+      onToast(tr("Model settings are damaged. Open Settings to repair them before launching a CLI."));
+      return;
+    }
     const active = state.tasks.find((t) => t.id === state.activeId);
     const dir = active?.dir;
     if (dir) {
-      addSession(dir, "claude", tr("New chat"), "claude");
+      const profileId = modelConfig?.settings.assignments.claude;
+      const profile = modelConfig?.settings.profiles.find((item) => item.id === profileId);
+      addSession(dir, "claude", tr("New chat"), "claude", profileId, profile?.name);
     } else {
       await pickFolder();
     }
@@ -235,6 +263,51 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
       for (const t of arr) ids.push(t.id);
     }
     reorderTasks(ids);
+  };
+
+  // 指针拖拽落点命中：返回指针下最近带 data-drag-id 的祖先元素。
+  const hitDragEl = (ev: PointerEvent): HTMLElement | null => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return (el?.closest?.("[data-drag-id]") as HTMLElement | null) ?? null;
+  };
+  const hitDragId = (ev: PointerEvent): string | null => hitDragEl(ev)?.getAttribute("data-drag-id") ?? null;
+
+  // 项目组把手：开始拖拽。kind 由把手自己的 data-drag-kind 决定，不必在组件里再分支。
+  const beginPointerDrag = (kind: "group" | "session", key: string, group: string | undefined) => (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    try { grip.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    dragRef.current = { kind, key, group };
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => {
+      const id = hitDragId(ev);
+      if (!id) return;
+      if (kind === "group") setOverGroup(id);
+      else if (dragRef.current?.group) setOverSession(id);
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.userSelect = "";
+      try { grip.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      const targetId = hitDragId(ev);
+      const d = dragRef.current;
+      if (kind === "group" && d?.kind === "group" && targetId && targetId !== key) {
+        const groupKeys = groups.map(([k]) => k);
+        if (groupKeys.includes(targetId)) {
+          const rect = hitDragEl(ev)?.getBoundingClientRect();
+          moveGroup(key, targetId, rect ? ev.clientY >= rect.top + rect.height / 2 : false);
+        }
+      } else if (kind === "session" && d?.kind === "session" && targetId && targetId !== key && d.group) {
+        moveSession(key, targetId, d.group);
+      }
+      dragRef.current = null;
+      setOverGroup(null);
+      setOverSession(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   // 会话栏宽度 + 折叠：本地持久化（不进 tasks.json，纯视图偏好）。拖右边缘调宽（180~460px），
@@ -387,37 +460,13 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
             const errorsInGroup = tasks.filter((task) => task.status === "error").length;
 
             return (
-              <div
-                key={projKey || "_loose"}
-                className="mb-1.5"
-                onDragOver={(e) => {
-                  if (dragRef.current?.kind === "group" && dragRef.current.key !== projKey) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    setOverGroup(projKey);
-                  }
-                }}
-                onDrop={(e) => {
-                  const d = dragRef.current;
-                  if (d?.kind === "group" && d.key !== projKey) {
-                    e.preventDefault();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    moveGroup(d.key, projKey, e.clientY >= rect.top + rect.height / 2);
-                    clearDrag();
-                  }
-                }}
-              >
+              <div key={projKey || "_loose"} className="mb-1.5">
                 {/* 项目组头：拖拽把手重排顺序；垃圾桶整组删除 */}
                 <div
-                  draggable
-                  onDragStart={(e) => {
-                    dragRef.current = { kind: "group", key: projKey };
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", projKey);
-                  }}
-                  onDragEnd={clearDrag}
+                  data-drag-id={projKey}
+                  data-drag-kind="group"
                   className={
-                    "group flex items-center gap-1 px-2.5 pt-3 pb-1 mt-0.5 text-[12.5px] font-semibold text-ink-1 select-none cursor-grab active:cursor-grabbing border-t " +
+                    "group flex items-center gap-1 px-2.5 pt-3 pb-1 mt-0.5 text-[12.5px] font-semibold text-ink-1 select-none border-t " +
                     (overGroup === projKey ? "border-accent" : "border-overlay/[0.06]")
                   }
                 >
@@ -434,7 +483,8 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                   </button>
                   <GripVertical
                     size={11}
-                    className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onPointerDown={beginPointerDrag("group", projKey, undefined)}
+                    className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none select-none"
                   />
                   <span className="flex-1 min-w-0 truncate font-medium" title={projDisplayDir}>
                     {projName}
@@ -503,18 +553,36 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                       </button>
                       {addMenuFor === projKey && (
                         <div className="absolute right-0 top-6 z-30 w-36 rounded-card border border-overlay/[0.10] bg-bg-2 shadow-card p-1">
-                          {ADD_TOOLS.map((a) => (
-                            <button
+                          {ADD_TOOLS.map((a) => {
+                            const profileId = modelConfig?.settings.assignments[a.tool];
+                            const profile = modelConfig?.settings.profiles.find((item) => item.id === profileId);
+                            return <button
                               key={a.tool}
                               onClick={() => {
-                                addSession(projDisplayDir, a.tool, a.name, a.cmd);
+                                if (!modelConfigLoaded) {
+                                  onToast(tr("Still checking model settings…"));
+                                  setAddMenuFor(null);
+                                  return;
+                                }
+                                if (!modelConfig) {
+                                  onToast(tr("Could not verify model settings. Open Settings and try again."));
+                                  setAddMenuFor(null);
+                                  return;
+                                }
+                                if (modelConfig?.config_error) {
+                                  onToast(tr("Model settings are damaged. Open Settings to repair them before launching a CLI."));
+                                  setAddMenuFor(null);
+                                  return;
+                                }
+                                addSession(projDisplayDir, a.tool, a.name, a.cmd, profileId, profile?.name);
                                 setAddMenuFor(null);
                               }}
                               className="w-full text-left px-2 py-1.5 rounded text-[12px] text-ink-2 hover:bg-overlay/[0.05]"
                             >
-                              {a.name}
+                              <span className="block truncate">{a.name}</span>
+                              {profile && <span className="block truncate text-[9.5px] text-ink-5">{profile.name}</span>}
                             </button>
-                          ))}
+                          })}
                         </div>
                       )}
                     </div>
@@ -570,32 +638,9 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                   return (
                     <div
                       key={t.id}
-                      draggable
+                      data-drag-id={t.id}
+                      data-drag-kind="session"
                       onClick={() => activate(t.id)}
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        dragRef.current = { kind: "session", key: t.id, group: projKey };
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", t.id);
-                      }}
-                      onDragEnd={clearDrag}
-                      onDragOver={(e) => {
-                        const d = dragRef.current;
-                        if (d?.kind === "session" && d.group === projKey && d.key !== t.id) {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                          setOverSession(t.id);
-                        }
-                      }}
-                      onDrop={(e) => {
-                        const d = dragRef.current;
-                        // 项目组拖拽要继续冒泡给外层组容器处理，不能在会话行提前清空。
-                        if (d?.kind !== "session") return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (d.group === projKey) moveSession(d.key, t.id, projKey);
-                        clearDrag();
-                      }}
                       className={
                         "group flex items-center gap-2 ml-4 mr-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer select-none border-l-2 border-t-2 " +
                         (overSession === t.id ? "border-t-accent " : "border-t-transparent ") +
@@ -603,6 +648,12 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                       }
                       title={t.dir}
                     >
+                      <GripVertical
+                        size={11}
+                        onPointerDown={beginPointerDrag("session", t.id, projKey)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none select-none -ml-2"
+                      />
                       <span
                         className={"dot " + statusDot(t.status, chatted.has(t.id))}
                         title={tr(statusTitle(t.status, chatted.has(t.id)))}
@@ -683,10 +734,6 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
           <span className="ml-auto shrink-0 text-[9.5px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-overlay/[0.04]" title={tr("OpenCodex version")}>
             v{__APP_VERSION__}
           </span>
-        </div>
-        <div className="flex items-center gap-1.5 px-3 pb-2 text-[10px] text-ink-5">
-          <Activity size={10} className={state.tasks.some((task) => task.status === "running") ? "text-success-400" : ""} />
-          {tr("{n} terminal(s) running", { n: state.tasks.filter((task) => task.status === "running").length })}
         </div>
       </div>
 

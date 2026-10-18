@@ -10,6 +10,7 @@ import { GripVertical, Pencil, Plus, RotateCcw, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useI18n } from "../../i18n";
+import { askConfirm } from "../../lib/confirm";
 import { useTermGroup } from "../term/useTermGroup";
 import "@xterm/xterm/css/xterm.css";
 
@@ -33,12 +34,14 @@ export function TermPanel({
   cwd,
   active,
   tool,
+  profileId,
   initialCmd,
   onReady,
 }: {
   cwd: string;
   active: boolean;
   tool?: string;
+  profileId?: string;
   initialCmd?: string;
   /** 挂载后回调，透出 runCmd 给父级（一键启动 WebUI 等场景）。 */
   onReady?: (api: TermPanelApi) => void;
@@ -46,11 +49,12 @@ export function TermPanel({
   const { t } = useI18n();
   const {
     hostRef, tabs, activeKey, setActiveKey, newTerm, closeTerm, runInActive, pasteToActive,
-    fontSize, bumpFontSize, resetActive, activeCommand,
+    resetActive, activeCommand,
   } = useTermGroup({
     open: active,
     cwd,
     tool,
+    profileId,
     initialCmd,
   });
   const showCodexHistory = tool === "codex" || /^\s*codex(?:\.exe)?(?:\s|$)/i.test(activeCommand ?? "");
@@ -101,6 +105,7 @@ export function TermPanel({
   const [adding, setAdding] = useState(false);
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [draggingLabel, setDraggingLabel] = useState<string | null>(null);
+  const [overLabel, setOverLabel] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState("");
   const [draftCmd, setDraftCmd] = useState("");
   useEffect(() => {
@@ -129,7 +134,12 @@ export function TermPanel({
     setEditingLabel(null);
     setAdding(false);
   };
-  const removeQuickCmd = (label: string) => persist(quickCmds.filter((c) => c.label !== label));
+  // 删除快捷按钮前先确认 —— 之前是 hover 才露出的 3.5 字号红叉、点一下即删，太容易误触。
+  const removeQuickCmd = async (label: string) => {
+    const okd = await askConfirm(t('Delete shortcut "{label}"?', { label }));
+    if (!okd) return;
+    persist(quickCmds.filter((c) => c.label !== label));
+  };
   const editQuickCmd = (q: QuickCmd) => {
     setDraftLabel(q.label);
     setDraftCmd(q.cmd);
@@ -146,16 +156,47 @@ export function TermPanel({
       setDraftCmd("");
     }).catch(() => {});
   };
-  const moveQuickCmd = (targetLabel: string) => {
-    if (!draggingLabel || draggingLabel === targetLabel) return;
-    const from = quickCmds.findIndex((q) => q.label === draggingLabel);
-    const to = quickCmds.findIndex((q) => q.label === targetLabel);
+  const reorderCmd = (fromLabel: string, toLabel: string | null) => {
+    if (!toLabel || fromLabel === toLabel) return;
+    const from = quickCmds.findIndex((q) => q.label === fromLabel);
+    const to = quickCmds.findIndex((q) => q.label === toLabel);
     if (from < 0 || to < 0) return;
     const next = [...quickCmds];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     persist(next);
-    setDraggingLabel(null);
+  };
+
+  // 指针拖拽重排（替代 HTML5 drag）：Tauri 的 dragDropEnabled 必须开 true 才能收到文件拖入
+  // （TermPanel 顶部那个 onDragDropEvent 靠它），而开了 true 之后 HTML5 内部拖拽在 Windows 上被
+  // 原生 drop handler 接管、不再触发。所以快捷词排序改走 pointer + elementFromPoint 命中，
+  // 跟系统级文件拖放互不干扰。
+  const beginCmdDrag = (label: string) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    try { grip.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    setDraggingLabel(label);
+    setOverLabel(label);
+    document.body.style.userSelect = "none";
+    const hitLabel = (ev: PointerEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      return el?.closest?.("[data-cmd-label]")?.getAttribute("data-cmd-label") ?? null;
+    };
+    const move = (ev: PointerEvent) => {
+      const lbl = hitLabel(ev);
+      if (lbl) setOverLabel(lbl);
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.userSelect = "";
+      try { grip.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      reorderCmd(label, hitLabel(ev));
+      setOverLabel(null);
+      setDraggingLabel(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   // 关闭防误触：第一次点 × 进入「待确认」（按钮变红 ✓），2 秒内再点一次才真关闭，
@@ -225,26 +266,6 @@ export function TermPanel({
           >
             <Plus size={14} />
           </button>
-          {/* 字号调节：A- / 当前值 / A+（也可用 Ctrl +/- 调，Ctrl 0 复位） */}
-          <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0">
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => bumpFontSize(-1)}
-              title={t("Decrease font size (Ctrl -)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
-            >
-              −
-            </button>
-            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title={t("Current font size")}>{fontSize}</span>
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => bumpFontSize(1)}
-              title={t("Increase font size (Ctrl +)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-overlay/[0.06]"
-            >
-              +
-            </button>
-          </div>
           {/* 重置终端：一键清掉 TUI 崩溃残留的卡死模式（鼠标坐标乱码/花屏/粘贴异常/光标消失/方向键错乱）。
               只重置 xterm 模拟器自身，不清屏、不碰 shell → 零副作用，卡住了随手点一下（或 Ctrl+Shift+R）。 */}
           <div className="flex items-center ml-1.5 pl-1.5 border-l border-overlay/[0.06] shrink-0">
@@ -273,18 +294,21 @@ export function TermPanel({
               少一次焦点抖动）。焦点上报泄漏（DECSET 1004 卡死 → \e[O/\e[I 污染命令成 `[Occd`/`> I`）
               的根治不在这里，而在 useTermGroup 的 term.onData 出口统一吞掉裸焦点序列——那才覆盖
               所有焦点来源（alt-tab、点文件树/对话、切窗口…），不止快捷按钮这一个口子。 */}
-          <div className="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 no-scrollbar">
+          <div className="flex items-center justify-end gap-1 min-w-0 overflow-x-auto flex-1 no-scrollbar">
             {quickCmds.map((q) => (
               <span
                 key={q.label}
-                draggable
-                onDragStart={() => setDraggingLabel(q.label)}
-                onDragEnd={() => setDraggingLabel(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => moveQuickCmd(q.label)}
-                className="group/cmd relative inline-flex items-center shrink-0"
+                data-cmd-label={q.label}
+                className={
+                  "group/cmd relative inline-flex items-center shrink-0 rounded " +
+                  (overLabel === q.label && draggingLabel && draggingLabel !== q.label ? "bg-accent/[0.12]" : "")
+                }
               >
-                <GripVertical size={10} className="text-ink-5 opacity-0 group-hover/cmd:opacity-100 cursor-grab" />
+                <GripVertical
+                  size={10}
+                  onPointerDown={beginCmdDrag(q.label)}
+                  className="text-ink-5 opacity-0 group-hover/cmd:opacity-100 cursor-grab touch-none select-none"
+                />
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runInActive(q.cmd)}
@@ -301,7 +325,7 @@ export function TermPanel({
                   <Pencil size={8} />
                 </button>
                 <button
-                  onClick={() => removeQuickCmd(q.label)}
+                  onClick={() => void removeQuickCmd(q.label)}
                   title={t("Delete this shortcut")}
                   className="opacity-0 group-hover/cmd:opacity-100 absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-danger-500 text-white flex items-center justify-center transition-opacity"
                 >

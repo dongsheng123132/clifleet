@@ -23,6 +23,7 @@ use std::os::windows::process::CommandExt; // taskkill 用 creation_flags 隐藏
 use portable_pty::{native_pty_system, CommandBuilder, PtySize};
 use tauri::ipc::Channel;
 
+use crate::config;
 use crate::paths::path_prefix;
 use crate::proxy;
 
@@ -97,8 +98,10 @@ fn resolve_cwd(cwd: Option<String>) -> String {
 /// 规则：按空格切 token —— 首 token（程序名）必须在固定允许集内；其余每个 token 只允许
 /// `[A-Za-z0-9-_=./:]` 且不含 `..`（防元字符注入与路径穿越）。空命令直接拒绝。
 fn validate_cmd(cmd: &str) -> bool {
-    const ALLOWED_PROGRAMS: &[&str] =
-        &["claude", "codex", "openclaw", "hermes", "opencode", "node", "npm", "git"];
+    const ALLOWED_PROGRAMS: &[&str] = &[
+        "claude", "codex", "openclaw", "hermes", "gemini", "opencode", "aider",
+        "node", "npm", "git",
+    ];
     let mut tokens = cmd.split_whitespace();
     let Some(prog) = tokens.next() else {
         return false;
@@ -153,6 +156,42 @@ fn shell_builder() -> CommandBuilder {
     let mut cmd = CommandBuilder::new(exe);
     cmd.args(["-NoLogo"]);
     cmd
+}
+
+/// npm 在 Windows 安装的是 .cmd/.bat 启动器，CreateProcessW 不能把它当 PE 直接执行。
+/// 这类启动器交给 ComSpec；参数均由 config.rs 的严格校验和后端模板生成，Key 只在 env。
+fn profile_command_builder(launch: config::ProfileLaunch) -> CommandBuilder {
+    let resolved = crate::paths::resolve_exe(&launch.program);
+    #[cfg(windows)]
+    let mut builder = {
+        let lower = resolved.to_ascii_lowercase();
+        if lower.ends_with(".cmd") || lower.ends_with(".bat") {
+            let comspec = std::env::var("ComSpec").unwrap_or_else(|_| "cmd.exe".into());
+            let mut command_line = format!("\"{}\"", resolved.replace('"', "\"\""));
+            for arg in launch.args {
+                command_line.push(' ');
+                command_line.push_str(&arg);
+            }
+            let mut command = CommandBuilder::new(comspec);
+            command.args(["/D", "/S", "/C"]);
+            command.arg(command_line);
+            command
+        } else {
+            let mut command = CommandBuilder::new(resolved);
+            command.args(launch.args);
+            command
+        }
+    };
+    #[cfg(not(windows))]
+    let mut builder = {
+        let mut command = CommandBuilder::new(resolved);
+        command.args(launch.args);
+        command
+    };
+    for (key, value) in launch.env {
+        builder.env(key, value);
+    }
+    builder
 }
 
 #[cfg(not(windows))]
@@ -382,6 +421,7 @@ pub async fn term_open(
     initial_cmd: Option<String>,
     cwd: Option<String>,
     tool: Option<String>,
+    profile_id: Option<String>,
 ) -> Result<String, String> {
     let pty_system = native_pty_system();
     let pair = pty_system
@@ -393,7 +433,29 @@ pub async fn term_open(
         })
         .map_err(|e| format!("openpty 失败: {e}"))?;
 
-    let mut builder = shell_builder();
+    // 显式档案启动直接 spawn CLI，避开 shell profile 覆盖变量，也不会在 CLI 退出后
+    // 把密钥遗留给一个长驻交互 shell。构造失败立即返回 typed error，绝不回退个人账号。
+    let profile_launch = match profile_id.as_deref() {
+        Some(profile_id) => {
+            let tool_id = tool.as_deref().ok_or("模型档案启动必须指定 CLI")?;
+            Some(config::profile_launch(tool_id, profile_id)?)
+        }
+        None => None,
+    };
+    if profile_launch.is_none() {
+        if let Some(cmd) = initial_cmd.as_deref() {
+            if !validate_cmd(cmd.trim()) {
+                return Err("启动命令不在安全白名单中；已阻止执行".into());
+            }
+        }
+    }
+
+    let direct_profile_launch = profile_launch.is_some();
+    let mut builder = if let Some(launch) = profile_launch {
+        profile_command_builder(launch)
+    } else {
+        shell_builder()
+    };
     builder.env("PATH", build_path());
     builder.env("TERM", "xterm-256color");
     proxy::apply_to_pty(&mut builder);
@@ -447,17 +509,17 @@ pub async fn term_open(
     }
 
     // 待运行命令（白名单校验：放宽到带参命令，挡 shell 注入，见 validate_cmd）
-    if let Some(cmd) = initial_cmd {
+    if !direct_profile_launch {
+      if let Some(cmd) = initial_cmd {
         let cmd = cmd.trim().to_string();
-        if validate_cmd(&cmd) {
-            if let Ok(mut map) = sessions().lock() {
-                if let Some(s) = map.get_mut(&id) {
-                    let _ = s.writer.write_all(cmd.as_bytes());
-                    let _ = s.writer.write_all(b"\r\n");
-                    let _ = s.writer.flush();
-                }
+        if let Ok(mut map) = sessions().lock() {
+            if let Some(s) = map.get_mut(&id) {
+                let _ = s.writer.write_all(cmd.as_bytes());
+                let _ = s.writer.write_all(b"\r\n");
+                let _ = s.writer.flush();
             }
         }
+      }
     }
 
     Ok(id)
@@ -574,6 +636,8 @@ mod tests {
         assert!(validate_cmd("codex --model gpt-5.3-codex"));
         assert!(validate_cmd("openclaw gateway run --port 18789"));
         assert!(validate_cmd("npm install -g openclaw"));
+        assert!(validate_cmd("gemini"));
+        assert!(validate_cmd("aider --model openai/model-1"));
     }
 
     #[test]
@@ -585,5 +649,57 @@ mod tests {
         assert!(!validate_cmd("claude | tee out"));
         assert!(!validate_cmd("git ../escape")); // 路径穿越
         assert!(!validate_cmd("powershell -c whoami")); // 程序名不在白名单
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn npm_cmd_launchers_run_in_a_real_pty() {
+        use super::{build_path, home_dir, native_pty_system, profile_command_builder};
+        use crate::config::ProfileLaunch;
+        use portable_pty::PtySize;
+        use std::io::Read;
+        use std::sync::{Arc, Mutex};
+        use std::time::{Duration, Instant};
+
+        for tool in ["claude", "codex"] {
+            if !crate::paths::tool_installed(tool) {
+                continue;
+            }
+            let launch = ProfileLaunch {
+                program: tool.into(),
+                args: vec!["--version".into()],
+                env: vec![],
+            };
+            let pair = native_pty_system()
+                .openpty(PtySize { rows: 12, cols: 100, pixel_width: 0, pixel_height: 0 })
+                .expect("open pty");
+            let mut builder = profile_command_builder(launch);
+            builder.env("PATH", build_path());
+            builder.cwd(home_dir());
+            let mut child = pair.slave.spawn_command(builder).expect("spawn npm launcher");
+            drop(pair.slave);
+            let mut reader = pair.master.try_clone_reader().expect("reader");
+            let output = Arc::new(Mutex::new(Vec::new()));
+            let copy = output.clone();
+            let reader_thread = std::thread::spawn(move || {
+                let mut buf = [0u8; 1024];
+                while let Ok(n) = reader.read(&mut buf) {
+                    if n == 0 { break; }
+                    if let Ok(mut bytes) = copy.lock() { bytes.extend_from_slice(&buf[..n]); }
+                }
+            });
+            let started = Instant::now();
+            let mut exited = false;
+            while started.elapsed() < Duration::from_secs(15) {
+                if matches!(child.try_wait(), Ok(Some(_))) { exited = true; break; }
+                std::thread::sleep(Duration::from_millis(50));
+            }
+            if !exited { let _ = child.kill(); }
+            drop(pair.master);
+            let _ = reader_thread.join();
+            let text = output.lock().map(|bytes| String::from_utf8_lossy(&bytes).to_string()).unwrap_or_default();
+            assert!(exited, "{tool} --version timed out: {text}");
+            assert!(!text.trim().is_empty(), "{tool} --version returned no output");
+        }
     }
 }
