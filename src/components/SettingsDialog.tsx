@@ -1,9 +1,11 @@
 /** 设置中心。模型档案仅写 OpenCodex 自己的配置；不会改各 CLI 的原配置或 TUI 配色。 */
 import { useEffect, useMemo, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Bot, CheckCircle2, Circle, Info, Monitor, Play, Plus, Save, Settings2, Trash2, X } from "lucide-react";
+import { open } from "@tauri-apps/plugin-shell";
+import { Bot, CheckCircle2, Circle, ExternalLink, GitBranch, Info, Monitor, Moon, Palette, Play, Plus, Save, Settings2, Sun, Trash2, X } from "lucide-react";
 import { useI18n } from "../i18n";
 import { askConfirm } from "../lib/confirm";
+import { readTheme, setTheme, type Theme } from "../theme";
 import {
   CLI_LAUNCH_EVENT, CLI_TOOLS, SETTINGS_UPDATED_EVENT, emptySettings, newProfile, profileFitsCli,
   type AuthKind, type CliDefinition, type CliLaunchRequest, type ConfigStatus,
@@ -15,7 +17,22 @@ import {
   MIN_TERMINAL_FONT_SIZE, TERMINAL_FONT_SIZE_EVENT, TERMINAL_FONT_SIZE_KEY,
 } from "../opencodex/term/displaySettings";
 
-type Page = "models" | "terminal" | "about";
+type Page = "models" | "terminal" | "appearance" | "about";
+
+const GITHUB_REPO = "https://github.com/dongsheng123132/opencodex";
+
+/** 打开外链：优先走系统默认浏览器。shell open 不可用时退回 window.open（开发态兜底）。 */
+async function openExternal(url: string): Promise<void> {
+  try {
+    await open(url);
+  } catch {
+    try {
+      window.open(url, "_blank", "noopener");
+    } catch {
+      /* ignore */
+    }
+  }
+}
 type Translate = (key: string, vars?: Record<string, string | number>) => string;
 
 const WIRE_LABELS: Record<WireApi, string> = {
@@ -44,6 +61,7 @@ export function SettingsDialog({ onToast, onClose, dataDir, portable }: { onToas
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [terminalFontSize, setTerminalFontSize] = useState(DEFAULT_TERMINAL_FONT_SIZE);
+  const [theme, setThemeState] = useState<Theme>(readTheme);
 
   useEffect(() => {
     invoke<ConfigStatus>("get_config").then((next) => {
@@ -67,6 +85,11 @@ export function SettingsDialog({ onToast, onClose, dataDir, portable }: { onToas
     setTerminalFontSize(next);
     void invoke("kv_set", { key: TERMINAL_FONT_SIZE_KEY, value: String(next) }).catch(() => {});
     window.dispatchEvent(new CustomEvent<number>(TERMINAL_FONT_SIZE_EVENT, { detail: next }));
+  };
+
+  const pickTheme = (next: Theme) => {
+    setThemeState(next);
+    setTheme(next);
   };
 
   const addProfile = () => {
@@ -149,13 +172,15 @@ export function SettingsDialog({ onToast, onClose, dataDir, portable }: { onToas
         <nav className="w-[176px] shrink-0 border-r border-overlay/[0.07] bg-overlay/[0.018] p-3 space-y-1">
           <NavButton active={page === "models"} icon={<Bot size={15} />} onClick={() => setPage("models")}>{t("Models & CLI pairing")}</NavButton>
           <NavButton active={page === "terminal"} icon={<Monitor size={15} />} onClick={() => setPage("terminal")}>{t("Terminal display")}</NavButton>
+          <NavButton active={page === "appearance"} icon={<Palette size={15} />} onClick={() => setPage("appearance")}>{t("Appearance")}</NavButton>
           <NavButton active={page === "about"} icon={<Info size={15} />} onClick={() => setPage("about")}>{t("About")}</NavButton>
         </nav>
 
         <main className="flex-1 min-w-0 overflow-y-auto p-5">
           {page === "models" && <ModelsPage t={t} status={status} settings={settings} selected={selected} selectedId={selectedId} onSelect={setSelectedId} onAdd={addProfile} onUpdate={updateProfile} onDelete={deleteProfile} onAssign={assign} onLaunch={saveAndLaunch} saving={saving} />}
           {page === "terminal" && <TerminalPage t={t} size={terminalFontSize} onChange={updateTerminalFontSize} />}
-          {page === "about" && <section className="max-w-xl space-y-4"><div><h3 className="text-[14px] font-semibold text-ink-0">{t("About")}</h3><p className="mt-1 text-[12px] text-ink-3">OpenCodex v{__APP_VERSION__}{portable ? ` · ${t("Portable data")}` : ""}</p></div>{dataDir && <div className="rounded-lg border border-overlay/[0.08] p-4"><div className="text-[11px] font-medium text-ink-3 mb-1">{t("Data folder")}</div><div className="text-[11px] text-ink-4 font-mono break-all">{dataDir}</div></div>}</section>}
+          {page === "appearance" && <AppearancePage t={t} theme={theme} onTheme={pickTheme} />}
+          {page === "about" && <AboutPage t={t} portable={portable} dataDir={dataDir} />}
         </main>
       </div>
 
@@ -205,6 +230,32 @@ function ModelsPage({ t, status, settings, selected, selectedId, onSelect, onAdd
 
 function TerminalPage({ t, size, onChange }: { t: Translate; size: number; onChange: (size: number) => void }) {
   return <section className="max-w-xl space-y-5"><div><h3 className="text-[14px] font-semibold text-ink-0">{t("Terminal display")}</h3><p className="mt-1 text-[11px] leading-relaxed text-ink-4">{t("OpenCodex changes only the terminal font size. Each CLI keeps its own TUI colors and appearance.")}</p></div><div className="rounded-lg border border-overlay/[0.08] p-4"><div className="text-[12px] font-medium text-ink-2 mb-3">{t("Terminal font size")}</div><div className="flex items-center gap-2"><button onClick={() => onChange(size - 1)} disabled={size <= MIN_TERMINAL_FONT_SIZE} className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-overlay/[0.10] text-ink-2 text-[17px] hover:bg-overlay/[0.04] disabled:opacity-40">−</button><output className="min-w-20 h-9 px-3 inline-flex items-center justify-center rounded-md bg-overlay/[0.05] text-[13px] font-medium tabular-nums text-ink-1">{size}px</output><button onClick={() => onChange(size + 1)} disabled={size >= MAX_TERMINAL_FONT_SIZE} className="inline-flex items-center justify-center w-9 h-9 rounded-md border border-overlay/[0.10] text-ink-2 text-[17px] hover:bg-overlay/[0.04] disabled:opacity-40">+</button><button onClick={() => onChange(DEFAULT_TERMINAL_FONT_SIZE)} disabled={size === DEFAULT_TERMINAL_FONT_SIZE} className="ml-1 h-9 px-3 rounded-md border border-overlay/[0.10] text-[12px] text-ink-3 hover:bg-overlay/[0.04] disabled:opacity-40">{t("Reset")}</button></div></div></section>;
+}
+
+function AppearancePage({ t, theme, onTheme }: { t: Translate; theme: Theme; onTheme: (theme: Theme) => void }) {
+  const options: { value: Theme; label: string; icon: React.ReactNode }[] = [
+    { value: "system", label: t("Follow system"), icon: <Monitor size={15} /> },
+    { value: "light", label: t("Light"), icon: <Sun size={15} /> },
+    { value: "dark", label: t("Dark"), icon: <Moon size={15} /> },
+  ];
+  return <section className="max-w-xl space-y-5"><div><h3 className="text-[14px] font-semibold text-ink-0">{t("Appearance")}</h3><p className="mt-1 text-[11px] leading-relaxed text-ink-4">{t("The workspace follows this theme. Terminals keep their native ANSI colors regardless.")}</p></div><div className="flex items-center gap-2">{options.map((opt) => <button key={opt.value} onClick={() => onTheme(opt.value)} className={"inline-flex items-center gap-1.5 h-9 px-3.5 rounded-md border text-[12px] transition-colors " + (theme === opt.value ? "border-accent/60 bg-accent/10 text-accent font-medium" : "border-overlay/[0.10] text-ink-2 hover:bg-overlay/[0.04]")}>{opt.icon}{opt.label}</button>)}</div></section>;
+}
+
+function AboutPage({ t, portable, dataDir }: { t: Translate; portable: boolean; dataDir: string | null }) {
+  const link = (label: string, url: string) => (
+    <button onClick={() => void openExternal(url)} className="inline-flex items-center gap-1 text-accent-400 hover:text-accent hover:underline">
+      {label}<ExternalLink size={11} />
+    </button>
+  );
+  return <section className="max-w-xl space-y-4">
+    <div><h3 className="text-[14px] font-semibold text-ink-0">{t("About")}</h3><p className="mt-1 text-[12px] text-ink-3">OpenCodex v{__APP_VERSION__}{portable ? ` · ${t("Portable data")}` : ""}</p></div>
+    <div className="rounded-lg border border-overlay/[0.08] p-4 space-y-2">
+      <div className="flex items-center gap-2 text-[12px] text-ink-2"><GitBranch size={14} className="text-ink-4" />{link(t("OpenCodex on GitHub"), GITHUB_REPO)}</div>
+      <div className="flex items-center gap-2 text-[12px] text-ink-2">{link(t("Report an issue"), `${GITHUB_REPO}/issues/new`)}</div>
+      <div className="flex items-center gap-2 text-[12px] text-ink-2">{link(t("Open a pull request"), `${GITHUB_REPO}/pulls`)}</div>
+    </div>
+    {dataDir && <div className="rounded-lg border border-overlay/[0.08] p-4"><div className="text-[11px] font-medium text-ink-3 mb-1">{t("Data folder")}</div><div className="text-[11px] text-ink-4 font-mono break-all">{dataDir}</div></div>}
+  </section>;
 }
 
 function NavButton({ active, icon, onClick, children }: { active: boolean; icon: React.ReactNode; onClick: () => void; children: React.ReactNode }) {

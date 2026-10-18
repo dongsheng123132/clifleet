@@ -49,6 +49,15 @@ export const ZH: Record<string, string> = {
   "Decrease terminal font size": "减小终端字号",
   "Increase terminal font size": "增大终端字号",
   "Data & migration": "数据与迁移",
+  "Appearance": "外观",
+  "Follow system": "跟随系统",
+  "Light": "浅色",
+  "Dark": "深色",
+  "The workspace follows this theme. Terminals keep their native ANSI colors regardless.":
+    "工作台跟随该主题显示；终端始终保持各自 CLI 的原生 ANSI 配色。",
+  "OpenCodex on GitHub": "OpenCodex 的 GitHub 仓库",
+  "Report an issue": "报告问题（Issue）",
+  "Open a pull request": "提交代码（Pull Request）",
   "About": "关于",
   "Portable data": "便携数据",
   "Data folder": "数据目录",
@@ -174,6 +183,7 @@ export const ZH: Record<string, string> = {
   "Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash":
     "重置终端（Ctrl+Shift+R）：清掉 claude/codex 这类 TUI 崩溃后残留的鼠标垃圾、屏幕残影和光标丢失",
   "Delete this shortcut": "删除此快捷按钮",
+  "Delete shortcut \"{label}\"?": "删除快捷按钮「{label}」？",
   "Edit this shortcut": "编辑此快捷按钮",
   "Add a custom shortcut": "添加自定义快捷按钮",
   "Shortcut": "快捷项",

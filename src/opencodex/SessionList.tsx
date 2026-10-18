@@ -156,15 +156,12 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
   };
 
   // 拖拽排序：dragRef 存当前拖的是「项目组」还是「组内会话」；over* 仅作落点高亮。
-  // 用原生 HTML5 拖拽，不引第三方库（守体积红线）。
+  // 用指针拖拽（grip 把手 + elementFromPoint 命中），不引第三方库（守体积红线）。
+  // 不能再用 HTML5 drag：dragDropEnabled 必须 true 才能收到「文件拖入终端」事件，而开了之后
+  // Windows 上 HTML5 内部拖拽被原生 drop handler 接管、不再触发（见 TermPanel 同款说明）。
   const dragRef = useRef<{ kind: "group" | "session"; key: string; group?: string } | null>(null);
   const [overGroup, setOverGroup] = useState<string | null>(null);
   const [overSession, setOverSession] = useState<string | null>(null);
-  const clearDrag = () => {
-    dragRef.current = null;
-    setOverGroup(null);
-    setOverSession(null);
-  };
 
   const pickFolder = async () => {
     const dir = await openDialog({ directory: true, multiple: false, title: tr("Select a project folder") });
@@ -266,6 +263,51 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
       for (const t of arr) ids.push(t.id);
     }
     reorderTasks(ids);
+  };
+
+  // 指针拖拽落点命中：返回指针下最近带 data-drag-id 的祖先元素。
+  const hitDragEl = (ev: PointerEvent): HTMLElement | null => {
+    const el = document.elementFromPoint(ev.clientX, ev.clientY);
+    return (el?.closest?.("[data-drag-id]") as HTMLElement | null) ?? null;
+  };
+  const hitDragId = (ev: PointerEvent): string | null => hitDragEl(ev)?.getAttribute("data-drag-id") ?? null;
+
+  // 项目组把手：开始拖拽。kind 由把手自己的 data-drag-kind 决定，不必在组件里再分支。
+  const beginPointerDrag = (kind: "group" | "session", key: string, group: string | undefined) => (e: React.PointerEvent) => {
+    if (e.button !== 0) return;
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    try { grip.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    dragRef.current = { kind, key, group };
+    document.body.style.userSelect = "none";
+    const move = (ev: PointerEvent) => {
+      const id = hitDragId(ev);
+      if (!id) return;
+      if (kind === "group") setOverGroup(id);
+      else if (dragRef.current?.group) setOverSession(id);
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.userSelect = "";
+      try { grip.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      const targetId = hitDragId(ev);
+      const d = dragRef.current;
+      if (kind === "group" && d?.kind === "group" && targetId && targetId !== key) {
+        const groupKeys = groups.map(([k]) => k);
+        if (groupKeys.includes(targetId)) {
+          const rect = hitDragEl(ev)?.getBoundingClientRect();
+          moveGroup(key, targetId, rect ? ev.clientY >= rect.top + rect.height / 2 : false);
+        }
+      } else if (kind === "session" && d?.kind === "session" && targetId && targetId !== key && d.group) {
+        moveSession(key, targetId, d.group);
+      }
+      dragRef.current = null;
+      setOverGroup(null);
+      setOverSession(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   // 会话栏宽度 + 折叠：本地持久化（不进 tasks.json，纯视图偏好）。拖右边缘调宽（180~460px），
@@ -418,37 +460,13 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
             const errorsInGroup = tasks.filter((task) => task.status === "error").length;
 
             return (
-              <div
-                key={projKey || "_loose"}
-                className="mb-1.5"
-                onDragOver={(e) => {
-                  if (dragRef.current?.kind === "group" && dragRef.current.key !== projKey) {
-                    e.preventDefault();
-                    e.dataTransfer.dropEffect = "move";
-                    setOverGroup(projKey);
-                  }
-                }}
-                onDrop={(e) => {
-                  const d = dragRef.current;
-                  if (d?.kind === "group" && d.key !== projKey) {
-                    e.preventDefault();
-                    const rect = e.currentTarget.getBoundingClientRect();
-                    moveGroup(d.key, projKey, e.clientY >= rect.top + rect.height / 2);
-                    clearDrag();
-                  }
-                }}
-              >
+              <div key={projKey || "_loose"} className="mb-1.5">
                 {/* 项目组头：拖拽把手重排顺序；垃圾桶整组删除 */}
                 <div
-                  draggable
-                  onDragStart={(e) => {
-                    dragRef.current = { kind: "group", key: projKey };
-                    e.dataTransfer.effectAllowed = "move";
-                    e.dataTransfer.setData("text/plain", projKey);
-                  }}
-                  onDragEnd={clearDrag}
+                  data-drag-id={projKey}
+                  data-drag-kind="group"
                   className={
-                    "group flex items-center gap-1 px-2.5 pt-3 pb-1 mt-0.5 text-[12.5px] font-semibold text-ink-1 select-none cursor-grab active:cursor-grabbing border-t " +
+                    "group flex items-center gap-1 px-2.5 pt-3 pb-1 mt-0.5 text-[12.5px] font-semibold text-ink-1 select-none border-t " +
                     (overGroup === projKey ? "border-accent" : "border-overlay/[0.06]")
                   }
                 >
@@ -465,7 +483,8 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                   </button>
                   <GripVertical
                     size={11}
-                    className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity"
+                    onPointerDown={beginPointerDrag("group", projKey, undefined)}
+                    className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none select-none"
                   />
                   <span className="flex-1 min-w-0 truncate font-medium" title={projDisplayDir}>
                     {projName}
@@ -619,32 +638,9 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                   return (
                     <div
                       key={t.id}
-                      draggable
+                      data-drag-id={t.id}
+                      data-drag-kind="session"
                       onClick={() => activate(t.id)}
-                      onDragStart={(e) => {
-                        e.stopPropagation();
-                        dragRef.current = { kind: "session", key: t.id, group: projKey };
-                        e.dataTransfer.effectAllowed = "move";
-                        e.dataTransfer.setData("text/plain", t.id);
-                      }}
-                      onDragEnd={clearDrag}
-                      onDragOver={(e) => {
-                        const d = dragRef.current;
-                        if (d?.kind === "session" && d.group === projKey && d.key !== t.id) {
-                          e.preventDefault();
-                          e.dataTransfer.dropEffect = "move";
-                          setOverSession(t.id);
-                        }
-                      }}
-                      onDrop={(e) => {
-                        const d = dragRef.current;
-                        // 项目组拖拽要继续冒泡给外层组容器处理，不能在会话行提前清空。
-                        if (d?.kind !== "session") return;
-                        e.preventDefault();
-                        e.stopPropagation();
-                        if (d.group === projKey) moveSession(d.key, t.id, projKey);
-                        clearDrag();
-                      }}
                       className={
                         "group flex items-center gap-2 ml-4 mr-1.5 mb-0.5 pl-3 pr-1.5 py-1.5 rounded-card cursor-pointer select-none border-l-2 border-t-2 " +
                         (overSession === t.id ? "border-t-accent " : "border-t-transparent ") +
@@ -652,6 +648,12 @@ export function SessionList({ onToast, onGoManage }: { onToast: (message: string
                       }
                       title={t.dir}
                     >
+                      <GripVertical
+                        size={11}
+                        onPointerDown={beginPointerDrag("session", t.id, projKey)}
+                        onClick={(e) => e.stopPropagation()}
+                        className="shrink-0 text-ink-5 opacity-0 group-hover:opacity-100 transition-opacity cursor-grab active:cursor-grabbing touch-none select-none -ml-2"
+                      />
                       <span
                         className={"dot " + statusDot(t.status, chatted.has(t.id))}
                         title={tr(statusTitle(t.status, chatted.has(t.id)))}

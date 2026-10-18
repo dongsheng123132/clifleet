@@ -10,6 +10,7 @@ import { GripVertical, Pencil, Plus, RotateCcw, X } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useI18n } from "../../i18n";
+import { askConfirm } from "../../lib/confirm";
 import { useTermGroup } from "../term/useTermGroup";
 import "@xterm/xterm/css/xterm.css";
 
@@ -104,6 +105,7 @@ export function TermPanel({
   const [adding, setAdding] = useState(false);
   const [editingLabel, setEditingLabel] = useState<string | null>(null);
   const [draggingLabel, setDraggingLabel] = useState<string | null>(null);
+  const [overLabel, setOverLabel] = useState<string | null>(null);
   const [draftLabel, setDraftLabel] = useState("");
   const [draftCmd, setDraftCmd] = useState("");
   useEffect(() => {
@@ -132,7 +134,12 @@ export function TermPanel({
     setEditingLabel(null);
     setAdding(false);
   };
-  const removeQuickCmd = (label: string) => persist(quickCmds.filter((c) => c.label !== label));
+  // 删除快捷按钮前先确认 —— 之前是 hover 才露出的 3.5 字号红叉、点一下即删，太容易误触。
+  const removeQuickCmd = async (label: string) => {
+    const okd = await askConfirm(t('Delete shortcut "{label}"?', { label }));
+    if (!okd) return;
+    persist(quickCmds.filter((c) => c.label !== label));
+  };
   const editQuickCmd = (q: QuickCmd) => {
     setDraftLabel(q.label);
     setDraftCmd(q.cmd);
@@ -149,16 +156,47 @@ export function TermPanel({
       setDraftCmd("");
     }).catch(() => {});
   };
-  const moveQuickCmd = (targetLabel: string) => {
-    if (!draggingLabel || draggingLabel === targetLabel) return;
-    const from = quickCmds.findIndex((q) => q.label === draggingLabel);
-    const to = quickCmds.findIndex((q) => q.label === targetLabel);
+  const reorderCmd = (fromLabel: string, toLabel: string | null) => {
+    if (!toLabel || fromLabel === toLabel) return;
+    const from = quickCmds.findIndex((q) => q.label === fromLabel);
+    const to = quickCmds.findIndex((q) => q.label === toLabel);
     if (from < 0 || to < 0) return;
     const next = [...quickCmds];
     const [moved] = next.splice(from, 1);
     next.splice(to, 0, moved);
     persist(next);
-    setDraggingLabel(null);
+  };
+
+  // 指针拖拽重排（替代 HTML5 drag）：Tauri 的 dragDropEnabled 必须开 true 才能收到文件拖入
+  // （TermPanel 顶部那个 onDragDropEvent 靠它），而开了 true 之后 HTML5 内部拖拽在 Windows 上被
+  // 原生 drop handler 接管、不再触发。所以快捷词排序改走 pointer + elementFromPoint 命中，
+  // 跟系统级文件拖放互不干扰。
+  const beginCmdDrag = (label: string) => (e: React.PointerEvent) => {
+    e.preventDefault();
+    const grip = e.currentTarget as HTMLElement;
+    try { grip.setPointerCapture(e.pointerId); } catch { /* ignore */ }
+    setDraggingLabel(label);
+    setOverLabel(label);
+    document.body.style.userSelect = "none";
+    const hitLabel = (ev: PointerEvent) => {
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      return el?.closest?.("[data-cmd-label]")?.getAttribute("data-cmd-label") ?? null;
+    };
+    const move = (ev: PointerEvent) => {
+      const lbl = hitLabel(ev);
+      if (lbl) setOverLabel(lbl);
+    };
+    const up = (ev: PointerEvent) => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", up);
+      document.body.style.userSelect = "";
+      try { grip.releasePointerCapture(e.pointerId); } catch { /* ignore */ }
+      reorderCmd(label, hitLabel(ev));
+      setOverLabel(null);
+      setDraggingLabel(null);
+    };
+    window.addEventListener("pointermove", move);
+    window.addEventListener("pointerup", up);
   };
 
   // 关闭防误触：第一次点 × 进入「待确认」（按钮变红 ✓），2 秒内再点一次才真关闭，
@@ -260,14 +298,17 @@ export function TermPanel({
             {quickCmds.map((q) => (
               <span
                 key={q.label}
-                draggable
-                onDragStart={() => setDraggingLabel(q.label)}
-                onDragEnd={() => setDraggingLabel(null)}
-                onDragOver={(e) => e.preventDefault()}
-                onDrop={() => moveQuickCmd(q.label)}
-                className="group/cmd relative inline-flex items-center shrink-0"
+                data-cmd-label={q.label}
+                className={
+                  "group/cmd relative inline-flex items-center shrink-0 rounded " +
+                  (overLabel === q.label && draggingLabel && draggingLabel !== q.label ? "bg-accent/[0.12]" : "")
+                }
               >
-                <GripVertical size={10} className="text-ink-5 opacity-0 group-hover/cmd:opacity-100 cursor-grab" />
+                <GripVertical
+                  size={10}
+                  onPointerDown={beginCmdDrag(q.label)}
+                  className="text-ink-5 opacity-0 group-hover/cmd:opacity-100 cursor-grab touch-none select-none"
+                />
                 <button
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => runInActive(q.cmd)}
@@ -284,7 +325,7 @@ export function TermPanel({
                   <Pencil size={8} />
                 </button>
                 <button
-                  onClick={() => removeQuickCmd(q.label)}
+                  onClick={() => void removeQuickCmd(q.label)}
                   title={t("Delete this shortcut")}
                   className="opacity-0 group-hover/cmd:opacity-100 absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-danger-500 text-white flex items-center justify-center transition-opacity"
                 >
