@@ -22,7 +22,6 @@ function pathsToCmdText(paths: string[]): string {
 const DEFAULT_QUICK_TOOLS: { label: string; cmd: string }[] = [
   { label: "claude", cmd: "claude" }, // Claude Code
   { label: "codex", cmd: "codex" }, // OpenAI Codex CLI
-  { label: "gemini", cmd: "gemini" }, // Google Gemini CLI
   { label: "opencode", cmd: "opencode" }, // opencode
   { label: "pi", cmd: "pi" }, // pi coding agent
 ];
@@ -30,7 +29,12 @@ const DEFAULT_QUICK_TOOLS: { label: string; cmd: string }[] = [
 /** 快捷词持久化 key（localStorage；存整个列表，label+cmd）。 */
 const QUICK_KEY = "opencodex.quickTools";
 
-/** 读用户自定义快捷词；没有/坏了回默认集。 */
+/** 历史默认集（按 cmd 序列比对）——用于一次性迁移。
+ *  只有当用户列表恰好等于某个旧默认集（说明他没改过）时才换成新默认集；
+ *  用户自己加过/删过的列表一律不动（不静默覆盖用户数据）。 */
+const LEGACY_DEFAULT_CMDS: string[] = ["claude,codex,gemini,opencode,aider", "claude,codex,gemini,opencode,pi"];
+
+/** 读用户自定义快捷词；没有/坏了/恰好等于旧默认集 → 用新默认集。 */
 function loadQuickTools(): { label: string; cmd: string }[] {
   try {
     const raw = localStorage.getItem(QUICK_KEY);
@@ -40,7 +44,9 @@ function loadQuickTools(): { label: string; cmd: string }[] {
     const clean = arr
       .filter((x) => x && typeof x.label === "string" && typeof x.cmd === "string")
       .map((x) => ({ label: x.label.slice(0, 24), cmd: x.cmd.slice(0, 200) }));
-    return clean.length ? clean : DEFAULT_QUICK_TOOLS;
+    if (!clean.length) return DEFAULT_QUICK_TOOLS;
+    if (LEGACY_DEFAULT_CMDS.includes(clean.map((x) => x.cmd).join(","))) return DEFAULT_QUICK_TOOLS;
+    return clean;
   } catch {
     return DEFAULT_QUICK_TOOLS;
   }

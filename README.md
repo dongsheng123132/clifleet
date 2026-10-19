@@ -16,7 +16,7 @@
 
 </div>
 
-OpenCodex is a minimal folder-based CLI workbench: pick a project folder → the main area **is a real in-app terminal** where you run Claude Code, Codex, Gemini CLI, Aider, opencode, or any CLI → open more terminal tabs when you need parallel work. Everything stays alive — switching projects or tabs never kills your terminal processes.
+OpenCodex is a minimal folder-based CLI workbench: pick a project folder → the main area **is a real in-app terminal** where you run Claude Code, Codex, opencode, pi, or any CLI → open more terminal tabs when you need parallel work. Everything stays alive — switching projects or tabs never kills your terminal processes.
 
 **Fully local, open-source, no keys, no server.** OpenCodex ships no API keys and points at no relay of its own. Model and endpoint configuration lives **inside your own CLIs** (via cc-switch, magpie, or the CLI's own config) — the terminal inherits your environment exactly as-is and never injects model or proxy variables.
 
@@ -64,7 +64,7 @@ cargo run -- --term-kill-test               # process-tree cleanup on close
 
 1. Launch OpenCodex.
 2. **Open folder…** → pick a project folder → it appears in the project list.
-3. Run any CLI in the terminal — `claude`, `codex`, `gemini`, `pi`, `opencode`… or click a quick command. Add your own quick commands with the `+` button (right-click a button to remove it).
+3. Run any CLI in the terminal — `claude`, `codex`, `opencode`, `pi`… or click a quick command. Add your own quick commands with the `+` button (right-click a button to remove it).
 4. Open more terminal tabs with `+`; close with the tab's `×` (click twice to confirm).
 
 ## Stack
