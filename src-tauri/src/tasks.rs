@@ -7,7 +7,7 @@
 //! 纯 std + serde_json，零新依赖。
 
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
@@ -127,4 +127,78 @@ pub fn reorder_tasks(ids: Vec<String>) -> Result<(), String> {
         }
     }
     write_file(&f)
+}
+
+/// 目录去重键：去尾斜杠 + 小写。与前端 `normDir` 语义一致（跨平台路径大小写不敏感去重）。
+fn norm_dir_key(dir: &str) -> String {
+    dir.trim_end_matches(['/', '\\']).to_lowercase()
+}
+
+#[derive(Serialize)]
+pub struct ImportSummary {
+    pub imported: usize,
+    pub skipped: usize,
+    pub source_exists: bool,
+}
+
+/// 从 U-King 工作台导入项目（`~/.uking/tasks.json` → OpenCodex 项目列表）。
+///
+/// 只增不删：已按目录去重存在的任务计入 skipped，绝不改动已有条目。
+/// U-King 的 `order` 是它自己的排序权重，直接沿用会打乱 OpenCodex 的排序手感，
+/// 所以导入时统一置 0（0 = 未排/置顶），`last_opened_at` 保留源值便于确定顺序。
+#[tauri::command]
+pub fn import_uking_tasks() -> Result<ImportSummary, String> {
+    let home = std::env::var("USERPROFILE")
+        .or_else(|_| std::env::var("HOME"))
+        .unwrap_or_else(|_| ".".into());
+    let src = Path::new(&home).join(".uking").join("tasks.json");
+    let text = match std::fs::read_to_string(&src) {
+        Ok(t) => t,
+        Err(_) => {
+            return Ok(ImportSummary {
+                imported: 0,
+                skipped: 0,
+                source_exists: false,
+            });
+        }
+    };
+    let source: TasksFile =
+        serde_json::from_str(&text).map_err(|e| format!("解析 U-King tasks.json 失败: {e}"))?;
+
+    let mut f = read_file();
+    let mut existing: std::collections::HashSet<String> =
+        f.tasks.iter().map(|t| norm_dir_key(&t.dir)).collect();
+
+    let mut imported = 0usize;
+    let mut skipped = 0usize;
+    for mut t in source.tasks {
+        if t.dir.trim().is_empty() || t.id.trim().is_empty() {
+            continue; // 空白条目不计入 skipped
+        }
+        if existing.contains(&norm_dir_key(&t.dir)) {
+            skipped += 1;
+            continue;
+        }
+        let now = now_ms();
+        if t.created_at == 0 {
+            t.created_at = now;
+        }
+        if t.last_opened_at == 0 {
+            t.last_opened_at = now;
+        }
+        t.order = 0;
+        existing.insert(norm_dir_key(&t.dir));
+        f.tasks.push(t);
+        imported += 1;
+    }
+
+    if imported > 0 {
+        f.version = 1;
+        write_file(&f)?;
+    }
+    Ok(ImportSummary {
+        imported,
+        skipped,
+        source_exists: true,
+    })
 }

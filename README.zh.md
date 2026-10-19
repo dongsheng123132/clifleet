@@ -64,7 +64,7 @@ cargo run -- --term-kill-test               # 关闭时进程树清理
 
 1. 启动 OpenCodex。
 2. **打开文件夹…** → 选项目文件夹 → 出现在项目列表。
-3. 终端里跑任意 CLI —— `claude`、`codex`、`gemini`、`aider`、`opencode`… 或点快捷词一键启动；`+` 可添加自定义快捷词（右键按钮删除）。
+3. 终端里跑任意 CLI —— `claude`、`codex`、`gemini`、`pi`、`opencode`… 或点快捷词一键启动；`+` 可添加自定义快捷词（右键按钮删除）。
 4. `+` 多开终端标签；点标签上的 `×`（点两下确认）关闭。
 
 ## 技术栈

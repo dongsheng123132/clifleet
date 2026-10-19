@@ -24,7 +24,7 @@ const DEFAULT_QUICK_TOOLS: { label: string; cmd: string }[] = [
   { label: "codex", cmd: "codex" }, // OpenAI Codex CLI
   { label: "gemini", cmd: "gemini" }, // Google Gemini CLI
   { label: "opencode", cmd: "opencode" }, // opencode
-  { label: "aider", cmd: "aider" }, // aider
+  { label: "pi", cmd: "pi" }, // pi coding agent
 ];
 
 /** 快捷词持久化 key（localStorage；存整个列表，label+cmd）。 */

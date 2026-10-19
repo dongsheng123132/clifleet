@@ -21,6 +21,17 @@ export const ZH: Record<string, string> = {
   "Close project (ends its terminal sessions; the folder on disk is untouched)":
     "关闭项目（会结束其中的终端会话；磁盘上的文件夹不动）",
   "OpenCodex version": "OpenCodex 版本",
+  "Import U-King": "导入 U-King",
+  "Importing…": "导入中…",
+  "Import projects from the U-King workspace (~/.uking/tasks.json)":
+    "从 U-King 工作台导入项目（~/.uking/tasks.json）",
+  "No U-King workspace data found (~/.uking/tasks.json)":
+    "未找到 U-King 工作台数据（~/.uking/tasks.json）",
+  "Imported {n} project(s) from U-King ({skipped} already present)":
+    "已从 U-King 导入 {n} 个项目（{skipped} 个已存在）",
+  "Nothing to import — all {skipped} U-King project(s) are already here":
+    "没有可导入的 —— {skipped} 个 U-King 项目都已在这里",
+  "Import failed: {err}": "导入失败: {err}",
 
   // —— 终端面板（TermPanel）——
   "Click again to confirm close": "再点一次确认关闭",

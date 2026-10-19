@@ -4,14 +4,15 @@
  * 顶栏 "Projects" + 收起按钮；「Open folder…」选文件夹建项目。
  */
 import { useRef, useState } from "react";
-import { ChevronsLeft, ChevronsRight, FolderPlus, FolderOpen } from "lucide-react";
+import { ChevronsLeft, ChevronsRight, FolderPlus, FolderOpen, Download } from "lucide-react";
+import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useWorkbench } from "./store";
 import { useI18n } from "../i18n";
 
 export function SessionList() {
   const { t } = useI18n();
-  const { state, addTask, removeTask, renameTask, activate } = useWorkbench();
+  const { state, addTask, removeTask, renameTask, activate, reloadTasks } = useWorkbench();
 
   // 收起成窄条（44px），只留展开 + 新建项目两个图标。纯视图偏好，localStorage 记住。
   const [collapsed, setCollapsed] = useState<boolean>(
@@ -31,6 +32,47 @@ export function SessionList() {
   const pickFolder = async () => {
     const dir = await openDialog({ directory: true, multiple: false, title: t("Select a project folder") });
     if (typeof dir === "string" && dir) await addTask(dir);
+  };
+
+  // 从 U-King 工作台导入项目 —— importing 防重入；结果贴在列表底部就地显示，
+  // 不另建 toast 组件（守「极简」边界）。
+  const [importing, setImporting] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+  const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const showNotice = (text: string) => {
+    setNotice(text);
+    if (noticeTimer.current) clearTimeout(noticeTimer.current);
+    noticeTimer.current = setTimeout(() => setNotice(null), 6000);
+  };
+  const importUking = async () => {
+    if (importing) return;
+    setImporting(true);
+    try {
+      const r = await invoke<{ imported: number; skipped: number; source_exists: boolean }>(
+        "import_uking_tasks",
+      );
+      if (!r.source_exists) {
+        showNotice(t("No U-King workspace data found (~/.uking/tasks.json)"));
+      } else if (r.imported > 0) {
+        showNotice(
+          t("Imported {n} project(s) from U-King ({skipped} already present)", {
+            n: r.imported,
+            skipped: r.skipped,
+          }),
+        );
+        reloadTasks();
+      } else {
+        showNotice(
+          t("Nothing to import — all {skipped} U-King project(s) are already here", {
+            skipped: r.skipped,
+          }),
+        );
+      }
+    } catch (e) {
+      showNotice(t("Import failed: {err}", { err: String(e) }));
+    } finally {
+      setImporting(false);
+    }
   };
 
   // 正在重命名的项目 id + 输入框内容。双击名字进入，回车/失焦保存，Esc 取消。
@@ -69,6 +111,17 @@ export function SessionList() {
           className="w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
         >
           <FolderPlus size={15} />
+        </button>
+        <button
+          onClick={importUking}
+          disabled={importing}
+          title={t("Import projects from the U-King workspace (~/.uking/tasks.json)")}
+          className={
+            "w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]" +
+            (importing ? " opacity-40" : "")
+          }
+        >
+          <Download size={15} />
         </button>
       </aside>
     );
@@ -179,8 +232,27 @@ export function SessionList() {
         )}
       </div>
 
-      {/* 底部：版本号 */}
-      <div className="px-3 py-2 border-t border-white/[0.06] shrink-0">
+      {/* 导入结果就地提示（6 秒自动消失） */}
+      {notice && (
+        <div className="mx-1.5 mb-1 px-2.5 py-1.5 rounded-card bg-white/[0.06] text-[11px] leading-relaxed text-ink-2 shrink-0">
+          {notice}
+        </div>
+      )}
+
+      {/* 底部：导入 U-King + 版本号 */}
+      <div className="px-2.5 py-2 border-t border-white/[0.06] shrink-0 flex items-center justify-between">
+        <button
+          onClick={importUking}
+          disabled={importing}
+          title={t("Import projects from the U-King workspace (~/.uking/tasks.json)")}
+          className={
+            "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-ink-5 hover:text-ink-2 hover:bg-white/[0.05]" +
+            (importing ? " opacity-40" : "")
+          }
+        >
+          <Download size={11} />
+          {importing ? t("Importing…") : t("Import U-King")}
+        </button>
         <span
           className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]"
           title={t("OpenCodex version")}

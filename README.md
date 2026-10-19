@@ -64,7 +64,7 @@ cargo run -- --term-kill-test               # process-tree cleanup on close
 
 1. Launch OpenCodex.
 2. **Open folder…** → pick a project folder → it appears in the project list.
-3. Run any CLI in the terminal — `claude`, `codex`, `gemini`, `aider`, `opencode`… or click a quick command. Add your own quick commands with the `+` button (right-click a button to remove it).
+3. Run any CLI in the terminal — `claude`, `codex`, `gemini`, `pi`, `opencode`… or click a quick command. Add your own quick commands with the `+` button (right-click a button to remove it).
 4. Open more terminal tabs with `+`; close with the tab's `×` (click twice to confirm).
 
 ## Stack

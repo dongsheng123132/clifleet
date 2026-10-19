@@ -169,6 +169,7 @@ pub fn run() {
             tasks::upsert_task,
             tasks::remove_task,
             tasks::reorder_tasks,
+            tasks::import_uking_tasks,
             logs::app_log,
         ])
         .build(tauri::generate_context!())
