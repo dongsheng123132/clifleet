@@ -3,11 +3,10 @@
  * 每行 = 项目名（双击重命名）+ 关闭按钮；点击行切换激活项目。
  * 顶栏 "Projects" + 收起按钮；「Open folder…」选文件夹建项目。
  */
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ChevronsLeft, ChevronsRight, FolderPlus, FolderOpen } from "lucide-react";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useWorkbench } from "./store";
-import { askConfirm } from "../lib/confirm";
 import { useI18n } from "../i18n";
 
 export function SessionList() {
@@ -37,13 +36,20 @@ export function SessionList() {
   // 正在重命名的项目 id + 输入框内容。双击名字进入，回车/失焦保存，Esc 取消。
   const [renaming, setRenaming] = useState<{ id: string; text: string } | null>(null);
 
-  // 关闭项目 —— 先用 askConfirm 说清代价：关掉会结束项目里的终端会话（磁盘文件夹不动）。
-  const onDelClick = async (id: string) => {
-    const ok = await askConfirm(
-      t("Close this project? Its terminal sessions will end. The folder on disk is not deleted."),
-    );
-    if (!ok) return;
-    void removeTask(id);
+  // 关闭项目 —— 两击确认（和终端标签同款防误触）：第一下变红，2 秒内再点才真关。
+  // 不用原生确认框：自动化实测它在合成点击下会被意外确认，两击确认单次点击永远删不掉。
+  const [pendingClose, setPendingClose] = useState<string | null>(null);
+  const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const onDelClick = (id: string) => {
+    if (pendingClose === id) {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+      setPendingClose(null);
+      void removeTask(id);
+    } else {
+      setPendingClose(id);
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+      closeTimer.current = setTimeout(() => setPendingClose(null), 2000);
+    }
   };
 
   // 折叠态：窄条 —— 只留展开 + 新建项目两个图标，把空间全让给终端
@@ -151,10 +157,19 @@ export function SessionList() {
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
-                    void onDelClick(task.id);
+                    onDelClick(task.id);
                   }}
-                  className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]"
-                  title={t("Close project (ends its terminal sessions; the folder on disk is untouched)")}
+                  className={
+                    "inline-flex items-center justify-center w-5 h-5 rounded shrink-0 transition-all " +
+                    (pendingClose === task.id
+                      ? "opacity-100 bg-danger-500/90 text-white" // 待确认：红底，再点一次才真关
+                      : "opacity-0 group-hover:opacity-100 text-ink-4 hover:text-ink-1 hover:bg-white/[0.08]")
+                  }
+                  title={
+                    pendingClose === task.id
+                      ? t("Click again to confirm close")
+                      : t("Close project (ends its terminal sessions; the folder on disk is untouched)")
+                  }
                 >
                   ✕
                 </button>

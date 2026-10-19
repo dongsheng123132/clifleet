@@ -265,6 +265,9 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       if (e.type !== "keydown") return true;
       const mod = e.ctrlKey || e.metaKey;
       if (mod && (e.key === "v" || e.key === "V")) {
+        // preventDefault 把浏览器的原生 paste 事件一并掐掉 —— 否则本处理器贴一次、
+        // 下面 el 的 "paste" 监听又贴一次，命令/登录码会重复两遍（实测复现）。
+        e.preventDefault();
         pasteFromClipboard();
         return false; // 别让 xterm 再处理
       }
@@ -277,6 +280,7 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
         return true; // 无选区→放行（^C 中断）
       }
       if (e.shiftKey && e.key === "Insert") {
+        e.preventDefault(); // 同上，防 Shift+Insert 双贴
         pasteFromClipboard();
         return false;
       }

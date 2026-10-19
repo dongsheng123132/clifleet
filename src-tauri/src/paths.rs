@@ -2,7 +2,7 @@
 //!
 //! 双击启动（Explorer / Finder）给的 PATH 往往不含 npm 全局目录、homebrew 等
 //! （它们一般只写进了 shell profile），导致明明装了 claude/codex 却找不到。
-//! 所以子进程 PATH 永远前置这几个已知位置，不赌系统 PATH。
+//! 所以子进程 PATH **追加**这几个已知位置兜底——只补不抢，用户自己的 PATH 优先。
 //!
 //! 纯路径子集 —— 不含任何下载/安装/商业逻辑。
 
@@ -83,19 +83,33 @@ pub fn search_paths() -> Vec<PathBuf> {
     v
 }
 
-/// 把 `search_paths` 拼成可设进子进程 `PATH` 的字符串（前置于现有 PATH）。
+/// 把 `search_paths` 拼进子进程 `PATH` 的字符串。
+///
+/// **追加而不是前置**：这些目录只是「PATH 很瘦时的兜底查找」，不能抢用户自己的优先级。
+/// （前置过的教训：机器上同时存在能用的 `~/.uking/runtime/node/claude` 和坏掉的
+/// npm shim，前置 npm 全局目录后反而先命中坏 shim，把好 CLI 挤到后面。）
+/// 已经在 PATH 里的目录跳过，不打乱原有顺序。
 pub fn path_prefix() -> String {
     let sep = if cfg!(windows) { ";" } else { ":" };
-    let dirs = search_paths();
-    let prefix = dirs
-        .iter()
-        .map(|d| d.display().to_string())
-        .collect::<Vec<_>>()
-        .join(sep);
     let old = std::env::var("PATH").unwrap_or_default();
-    if prefix.is_empty() {
+    let existing: Vec<String> = old
+        .split(sep)
+        .map(|s| s.trim_end_matches(['/', '\\']).to_lowercase())
+        .filter(|s| !s.is_empty())
+        .collect();
+    let extra: Vec<String> = search_paths()
+        .iter()
+        .filter(|d| {
+            let key = d.display().to_string().trim_end_matches(['/', '\\']).to_lowercase();
+            !key.is_empty() && !existing.contains(&key)
+        })
+        .map(|d| d.display().to_string())
+        .collect();
+    if extra.is_empty() {
         old
+    } else if old.is_empty() {
+        extra.join(sep)
     } else {
-        format!("{prefix}{sep}{old}")
+        format!("{old}{sep}{}", extra.join(sep))
     }
 }

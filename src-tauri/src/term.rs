@@ -2,11 +2,11 @@
 //!
 //! ## 为什么自己起 PTY 而不弹外部窗口
 //! 外部 PowerShell 用 `-NoProfile` 又不注入 PATH，导致 claude/codex 等 CLI 找不到命令。
-//! 这里复用 `paths::path_prefix`（统一口径的 PATH），把 npm 全局、~/bin 等目录前置进
+//! 这里复用 `paths::path_prefix`（统一口径的 PATH），把 npm 全局、~/bin 等目录追加进（不抢用户 PATH 优先级）
 //! 子 shell 的 PATH —— 装过的 CLI 因此能直接跑。
 //!
 //! ## 环境
-//! 子进程只覆盖 `PATH`（前置已知工具目录）与 `TERM`，**不注入任何模型/代理/工具目录变量** ——
+//! 子进程只覆盖 `PATH`（追加兜底工具目录）与 `TERM`，**不注入任何模型/代理/工具目录变量** ——
 //! 完整沿用用户已配置的环境（profile 里的别名、claude/codex 自己的配置都原样生效）。
 //!
 //! ## 生命周期
@@ -52,7 +52,7 @@ fn next_id() -> String {
     format!("t{}", *g)
 }
 
-/// 前置已知工具目录的 PATH，让 claude/codex 等 CLI 可解析。
+/// PATH 追加已知工具目录（兜底），让 claude/codex 等 CLI 可解析。
 fn build_path() -> String {
     path_prefix()
 }
@@ -103,7 +103,7 @@ fn find_pwsh7() -> Option<String> {
 
 /// 构造交互式 shell 命令。Windows 优先 PowerShell 7（pwsh），保留用户 profile
 /// （别名 cc/cx/gem、UTF-8 等都在里面）；没装 7 则回退 Windows PowerShell 5.1。
-/// 都不加 -NoProfile（要用户 profile 里的 PATH/别名），我们额外前置已知工具目录。
+/// 都不加 -NoProfile（要用户 profile 里的 PATH/别名），我们额外追加已知工具目录兜底（不抢用户 PATH 优先级）。
 #[cfg(windows)]
 fn shell_builder() -> CommandBuilder {
     let exe = find_pwsh7().unwrap_or_else(|| "powershell.exe".into());

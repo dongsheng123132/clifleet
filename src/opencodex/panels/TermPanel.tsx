@@ -18,14 +18,33 @@ function pathsToCmdText(paths: string[]): string {
   return paths.map(quote).join(" ") + " ";
 }
 
-/** 终端顶栏一键启动的常用 AI 编程 CLI。点一下发进当前终端执行。 */
-const QUICK_TOOLS: { label: string; cmd: string }[] = [
+/** 终端顶栏一键启动的常用 AI 编程 CLI（默认集，用户可改）。点一下发进当前终端执行。 */
+const DEFAULT_QUICK_TOOLS: { label: string; cmd: string }[] = [
   { label: "claude", cmd: "claude" }, // Claude Code
   { label: "codex", cmd: "codex" }, // OpenAI Codex CLI
   { label: "gemini", cmd: "gemini" }, // Google Gemini CLI
   { label: "opencode", cmd: "opencode" }, // opencode
   { label: "aider", cmd: "aider" }, // aider
 ];
+
+/** 快捷词持久化 key（localStorage；存整个列表，label+cmd）。 */
+const QUICK_KEY = "opencodex.quickTools";
+
+/** 读用户自定义快捷词；没有/坏了回默认集。 */
+function loadQuickTools(): { label: string; cmd: string }[] {
+  try {
+    const raw = localStorage.getItem(QUICK_KEY);
+    if (!raw) return DEFAULT_QUICK_TOOLS;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr)) return DEFAULT_QUICK_TOOLS;
+    const clean = arr
+      .filter((x) => x && typeof x.label === "string" && typeof x.cmd === "string")
+      .map((x) => ({ label: x.label.slice(0, 24), cmd: x.cmd.slice(0, 200) }));
+    return clean.length ? clean : DEFAULT_QUICK_TOOLS;
+  } catch {
+    return DEFAULT_QUICK_TOOLS;
+  }
+}
 
 export function TermPanel({ cwd, active }: { cwd: string; active: boolean }) {
   const { t } = useI18n();
@@ -96,6 +115,35 @@ export function TermPanel({ cwd, active }: { cwd: string; active: boolean }) {
     if (confirmTimer.current) clearTimeout(confirmTimer.current);
   }, []);
 
+  // 快捷词：默认内置，用户可增删，localStorage 记住（全局共享，所有项目同一份）
+  const [quickTools, setQuickTools] = useState(loadQuickTools);
+  const [pendingDel, setPendingDel] = useState<number | null>(null);
+  const delTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => {
+    if (delTimer.current) clearTimeout(delTimer.current);
+  }, []);
+  const saveQuickTools = (next: { label: string; cmd: string }[]) => {
+    setQuickTools(next);
+    try {
+      localStorage.setItem(QUICK_KEY, JSON.stringify(next));
+    } catch {
+      /* ignore */
+    }
+  };
+  // 行内「添加快捷词」小表单（window.prompt 在 Tauri WebView 不可用，用行内输入框）
+  const [adding, setAdding] = useState(false);
+  const [newLabel, setNewLabel] = useState("");
+  const [newCmd, setNewCmd] = useState("");
+  const submitNew = () => {
+    const label = newLabel.trim();
+    const cmd = newCmd.trim();
+    if (!label || !cmd) return;
+    saveQuickTools([...quickTools, { label: label.slice(0, 24), cmd: cmd.slice(0, 200) }]);
+    setAdding(false);
+    setNewLabel("");
+    setNewCmd("");
+  };
+
   return (
     <div className="flex flex-col h-full min-h-0">
       {/* 标签栏 */}
@@ -138,54 +186,129 @@ export function TermPanel({ cwd, active }: { cwd: string; active: boolean }) {
           >
             <Plus size={14} />
           </button>
-          {/* 字号调节：A- / 当前值 / A+（也可用 Ctrl +/- 调，Ctrl 0 复位） */}
-          <div className="flex items-center gap-0.5 ml-1.5 pl-1.5 border-l border-white/[0.06] shrink-0">
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => bumpFontSize(-1)}
-              title={t("Decrease font size (Ctrl -)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
-            >
-              −
-            </button>
-            <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title={t("Current font size")}>{fontSize}</span>
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={() => bumpFontSize(1)}
-              title={t("Increase font size (Ctrl +)")}
-              className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
-            >
-              +
-            </button>
-          </div>
-          {/* 重置终端：一键清掉 TUI 崩溃残留的卡死模式（鼠标坐标乱码/花屏/粘贴异常/光标消失/方向键错乱）。
-              只重置 xterm 模拟器自身，不清屏、不碰 shell → 零副作用，卡住了随手点一下（或 Ctrl+Shift+R）。 */}
-          <div className="flex items-center ml-1.5 pl-1.5 border-l border-white/[0.06] shrink-0">
-            <button
-              onMouseDown={(e) => e.preventDefault()}
-              onClick={resetActive}
-              title={t("Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash")}
-              className="inline-flex items-center justify-center w-6 h-6 rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
-            >
-              <RotateCcw size={13} />
-            </button>
-          </div>
         </div>
-        {/* 快捷词：内置常用 AI CLI，占满剩余空间。onMouseDown preventDefault：点按钮不抢终端焦点。 */}
+        {/* 快捷词：默认内置常用 AI CLI，用户可增删（localStorage 记住）。点=运行，右键=删除。
+            onMouseDown preventDefault：点按钮不抢终端焦点。占中间弹性空间。 */}
         <div className="flex items-center gap-1 min-w-0 overflow-x-auto flex-1 pl-2 ml-1 border-l border-white/[0.06] no-scrollbar">
-          {QUICK_TOOLS.map((q) => (
+          {quickTools.map((q, i) => (
             <button
-              key={q.label}
+              key={q.label + i}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => runInActive(q.cmd)}
-              title={t("Run in terminal: {cmd}", { cmd: q.cmd })}
-              className="h-6 px-2 rounded text-[11px] text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14] transition-colors shrink-0"
+              onContextMenu={(e) => {
+                // 右键删除（带确认——按钮先变红再点一次才真删，和终端标签同款防误触）
+                e.preventDefault();
+                if (pendingDel === i) {
+                  setPendingDel(null);
+                  const next = quickTools.filter((_, j) => j !== i);
+                  setQuickTools(next);
+                  try {
+                    localStorage.setItem(QUICK_KEY, JSON.stringify(next));
+                  } catch {
+                    /* ignore */
+                  }
+                } else {
+                  setPendingDel(i);
+                  if (delTimer.current) clearTimeout(delTimer.current);
+                  delTimer.current = setTimeout(() => setPendingDel(null), 2000);
+                }
+              }}
+              title={pendingDel === i ? t("Click again to remove this quick command") : t("Run in terminal: {cmd} (right-click to remove)", { cmd: q.cmd })}
+              className={
+                "h-6 px-2 rounded text-[11px] transition-colors shrink-0 " +
+                (pendingDel === i
+                  ? "bg-danger-500/90 text-white"
+                  : "text-ink-3 hover:text-ink-0 hover:bg-accent/[0.14]")
+              }
             >
               {q.label}
             </button>
           ))}
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setAdding((a) => !a);
+              setNewLabel("");
+              setNewCmd("");
+            }}
+            title={t("Add a quick command")}
+            className="h-6 w-6 inline-flex items-center justify-center rounded text-ink-4 hover:text-ink-0 hover:bg-white/[0.06] shrink-0"
+          >
+            <Plus size={12} />
+          </button>
+        </div>
+        {/* 右端：字号调节 + 软重置 —— 「视图调节」归右，和左侧「页面管理」隔开，不堆一起。
+            字号：A- / 当前值 / A+（也可 Ctrl +/- 调，Ctrl 0 复位 14）。 */}
+        <div className="flex items-center gap-0.5 pl-2 ml-1 border-l border-white/[0.06] shrink-0">
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => bumpFontSize(-1)}
+            title={t("Decrease font size (Ctrl -)")}
+            className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+          >
+            −
+          </button>
+          <span className="text-[10px] text-ink-4 tabular-nums w-4 text-center" title={t("Current font size")}>{fontSize}</span>
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => bumpFontSize(1)}
+            title={t("Increase font size (Ctrl +)")}
+            className="inline-flex items-center justify-center w-5 h-5 rounded text-[13px] leading-none text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+          >
+            +
+          </button>
+          {/* 重置终端：一键清掉 TUI 崩溃残留的卡死模式（鼠标坐标乱码/花屏/粘贴异常/光标消失/方向键错乱）。
+              只重置 xterm 模拟器自身，不清屏、不碰 shell → 零副作用，卡住了随手点一下（或 Ctrl+Shift+R）。 */}
+          <button
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={resetActive}
+            title={t("Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash")}
+            className="inline-flex items-center justify-center w-6 h-6 rounded ml-1 text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]"
+          >
+            <RotateCcw size={13} />
+          </button>
         </div>
       </div>
+      {/* 行内添加快捷词表单：名字 + 命令，回车保存，Esc 取消 */}
+      {adding && (
+        <div className="flex items-center gap-1.5 h-9 px-2 border-b border-white/[0.06] bg-bg-1 shrink-0">
+          <input
+            autoFocus
+            placeholder={t("Name (e.g. claude)")}
+            value={newLabel}
+            onChange={(e) => setNewLabel(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitNew();
+              else if (e.key === "Escape") setAdding(false);
+            }}
+            className="w-32 h-6 px-2 rounded bg-black/20 border border-white/[0.14] focus:border-accent/60 text-[12px] text-ink-0 outline-none"
+          />
+          <input
+            placeholder={t("Command (e.g. claude --continue)")}
+            value={newCmd}
+            onChange={(e) => setNewCmd(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") submitNew();
+              else if (e.key === "Escape") setAdding(false);
+            }}
+            className="flex-1 min-w-0 h-6 px-2 rounded bg-black/20 border border-white/[0.14] focus:border-accent/60 text-[12px] text-ink-0 outline-none font-mono"
+          />
+          <button
+            onClick={submitNew}
+            title={t("Save")}
+            className="h-6 px-2.5 rounded text-[11.5px] bg-accent/[0.14] text-accent-400 hover:bg-accent/[0.20] shrink-0"
+          >
+            {t("Save")}
+          </button>
+          <button
+            onClick={() => setAdding(false)}
+            title={t("Cancel")}
+            className="h-6 px-2.5 rounded text-[11.5px] text-ink-3 hover:text-ink-0 hover:bg-white/[0.06] shrink-0"
+          >
+            {t("Cancel")}
+          </button>
+        </div>
+      )}
       {/* 终端宿主 */}
       <div ref={hostRef} className="relative flex-1 min-h-0 bg-[#0d0d0f]">
         {dragOver && (

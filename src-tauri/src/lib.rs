@@ -55,6 +55,36 @@ fn clipboard_write(text: String) -> Result<(), String> {
     cb.set_text(text).map_err(|e| e.to_string())
 }
 
+/// 在系统文件管理器里打开文件夹（项目路径栏的「打开」按钮）。
+/// 不做任何注入，就是资源管理器原样打开。
+#[tauri::command]
+fn reveal_dir(path: String) -> Result<(), String> {
+    #[cfg(windows)]
+    {
+        std::process::Command::new("explorer")
+            .arg(&path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&path)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+}
+
 // ============================================================
 // 辅助
 // ============================================================
@@ -130,6 +160,7 @@ pub fn run() {
             get_env,
             clipboard_read,
             clipboard_write,
+            reveal_dir,
             term::term_open,
             term::term_write,
             term::term_resize,

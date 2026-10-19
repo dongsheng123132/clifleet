@@ -20,8 +20,6 @@ export const ZH: Record<string, string> = {
   "Double-click to rename": "双击可重命名",
   "Close project (ends its terminal sessions; the folder on disk is untouched)":
     "关闭项目（会结束其中的终端会话；磁盘上的文件夹不动）",
-  "Close this project? Its terminal sessions will end. The folder on disk is not deleted.":
-    "关闭这个项目？它里面的终端会话会结束。\n（磁盘上的文件夹不会被删除）",
   "OpenCodex version": "OpenCodex 版本",
 
   // —— 终端面板（TermPanel）——
@@ -34,5 +32,16 @@ export const ZH: Record<string, string> = {
   "Reset terminal (Ctrl+Shift+R): clears mouse garbage, screen artifacts, and lost-cursor states left behind when claude/codex-style TUIs crash":
     "重置终端（Ctrl+Shift+R）：清掉 claude/codex 这类 TUI 崩溃后残留的鼠标垃圾、屏幕残影和光标丢失",
   "Run in terminal: {cmd}": "在终端中运行: {cmd}",
-  "Drop to insert the path into the command line": "拖放到此处，把路径插入命令行",
+  "Run in terminal: {cmd} (right-click to remove)": "在终端中运行: {cmd}（右键可删除）",
+  "Click again to remove this quick command": "再点一次确认删除该快捷词",
+  "Add a quick command": "添加快捷词",
+  "Name (e.g. claude)": "名字（如 claude）",
+  "Command (e.g. claude --continue)": "命令（如 claude --continue）",
+  "Save": "保存",
+  "Cancel": "取消",
+
+  // —— 项目顶栏（ProjectView）——
+  "Click to copy the folder path": "点击复制文件夹路径",
+  "Copied!": "已复制！",
+  "Open folder in file explorer": "在资源管理器中打开文件夹",
 };
