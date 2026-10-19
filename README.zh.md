@@ -1,97 +1,85 @@
+<div align="center">
+
+![OpenCodex — 用真终端跑 AI 编程 CLI，一次一个文件夹](docs/banner.png)
+
 # OpenCodex
 
 [English](./README.md) · **简体中文**
 
-> 开源、绿色（免安装）的本地编程工作台 —— 以**文件夹**为基础的多终端 AI 编程与管理。
+### 约 3 MB 的绿色（免安装）工作台 —— 用真终端跑 AI 编程 CLI，一次一个文件夹。
 
-OpenCodex 是一个 Codex 同款体验的桌面工作台：选一个项目文件夹 → 主区直接是**应用内真终端**，跑 Claude Code / Codex 等 CLI → 随手左右/上下分屏多开 → 需要时从顶栏滑出文件树、浏览器。常驻保活，切会话不杀终端进程。
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
+[![Release](https://img.shields.io/github/v/release/dongsheng123132/opencodex)](https://github.com/dongsheng123132/opencodex/releases/latest)
+[![Build](https://github.com/dongsheng123132/opencodex/actions/workflows/release.yml/badge.svg)](https://github.com/dongsheng123132/opencodex/actions/workflows/release.yml)
+[![Built with Tauri](https://img.shields.io/badge/built%20with-Tauri%202-24C8DB.svg)](https://tauri.app)
+![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)
 
-完全本地、开源、**自带模型**：不内置任何 API Key、不指向任何中转/服务器。你填自己的 Base URL + API Key（DeepSeek / 智谱 / Kimi / Anthropic 官方 / 本地 ollama / 任意 OpenAI·Anthropic 兼容端点都行）。
+</div>
 
-![OpenCodex 主界面 —— 一个文件夹里 2×2 分屏开多个终端](docs/screenshot-main.png)
+OpenCodex 是一个极简的「基于文件夹的 CLI 工作台」：选一个项目文件夹 → 主区就是**应用内真终端**，跑 Claude Code / Codex / Gemini CLI / Aider / opencode 或任意 CLI → 需要并行干活就多开终端标签。全程保活——切项目、切标签都不杀进程。
 
-## 为什么做这个
+**完全本地、开源、无内置 Key、无服务器。** 模型与端点配置放在**你自己的 CLI 里**（cc-switch、magpie 或 CLI 自带配置都行）——终端完整继承你的环境，**不注入任何模型/代理变量**。
 
-Codex 这类工具，可以说是 AI 发展史上的第一辆「自动挡汽车」—— 一个全能的六边形战士，与其叫战士，不如说是一个**个人小军团**：
-
-- **基于文件夹的多进程管理**：一座现代化的「文件加工工厂」。这是最基本、却最关键的能力 —— 很多大厂的产品经理到现在抄作业都还没抄会。
-- **类 Manus 的办公集成**：拉个邮件、写个 Notion，办公流程串起来。
-- **Computer Use（电脑操控）**：这才是王炸 —— AI 发展史上第一辆自动挡汽车，能解锁的功能和玩法多到数不过来。
-- **编程**：也行，但太磨蹭，像在绣花 —— 远不如 Claude Code 那种「喀秋莎火箭炮」式的力大无边（当然都还没到核弹级）。
-- **生图**：核弹级别，美工、前端全线吃紧。
-- 几大优势兵种综合起来，就是战无不胜的**罗马军团**。最近 Codex 还允许接「外援雇佣兵」—— 第三方模型也能放进来，更香了。
-
-但 Codex 本身有两个硬伤：**不开源，而且体积太重**。
-
-### 我们看到的竞争格局与痛点
-
-1. 现有竞争对手产品普遍**太重**。
-2. 以前虽然有一些多任务、多终端管理工具，但大多是**面向人**的操作逻辑。
-3. 目前还**缺乏像 Codex 这样面向 AI、支持多终端编程协同**的轻量工具。
-
-### 于是有了 OpenCodex
-
-- **核心能力**：基于文件夹实现高效的多任务、多终端管理，做到了很高的完成度。
-- **协作模式**：在一个文件夹下打开多个终端，同时跑多个 Claude Code 等工具做**多进程编程**，体验非常顺畅。
-- **轻量化方案**：针对 Codex 不开源、体积重的问题，做了这个**约 4.7MB 的绿色版**（Tauri，复用系统 WebView，不打包浏览器内核），更贴合实际开发场景。
-
-一句话：把 Codex「面向 AI 的多终端工厂」这一最核心、最被低估的能力，做成一个开源、绿色、自带模型的轻量工具 —— 自己用得哇哇叫，索性开源出来。
-
-### 后续规划
-
-- 先把当前 **Demo 版**做扎实、跑起来。
-- 后期持续叠加更多能力（本地大模型管家、办公集成等）。
-- 做**多语言版本面向全球发布**，在 GitHub 上开源看看反响。
+![OpenCodex 主界面 —— 项目列表、终端标签、快捷启动](docs/screenshot-main.png)
 
 ## 特性
 
-- **文件夹为基础的多终端工厂**：每个项目一个文件夹，左侧按项目分组列出全部会话；主区直接是终端。
-- **多终端分屏多开**：一个文件夹里左右/上下分屏开多个终端，同时跑多个 Claude Code 等 CLI 做多进程编程。分屏只挪位置不重建，**正在跑的终端永不被杀**。
-- **应用内真终端（PTY）**：Rust 起伪终端（`portable_pty`），前端 xterm.js + **WebGL 渲染**（高频 TUI 刷新顺滑）。PATH 自动注入便携 Node/Python 与 `npm` 全局目录，`claude`/`codex` 等可直接跑。关闭终端**连子进程树一起清**，不留孤儿进程。
-- **拖放落路径**：把文件 / 图片 / 文件夹拖进终端 → 真实路径自动填进命令行（贴图给 Claude Code 看、喂文件路径都顺手）。
-- **布局记忆 + 字号可调**：分屏排布关 App 重开自动恢复；字号 `Ctrl ±` / 标签栏按钮实时调，存盘统一。
-- **滑出式面板**：顶栏点一下，从右侧滑出文件树 / 浏览器，可拖宽、可收起。
-- **自带模型**：「模型设置」里填 Base URL / API Key / 模型名，只保存到 `~/.opencodex/config.json`，并仅临时注入 OpenCodex 启动的终端与 AI 子进程；不修改 Claude Code 登录态、全局配置或系统环境变量。
-- **绿色 exe**：约 4.7MB，体积优先的 release profile（`opt-level=z` + LTO + strip），单文件可执行，复用系统 WebView 不打包浏览器内核。
+- **🗂️ 基于文件夹的项目** —— 左侧一文件夹一项目；点路径即复制，也可一键在资源管理器中打开。
+- **🖥️ 真·多终端标签** —— 每个标签是真 PTY（`portable_pty`）+ xterm.js **WebGL** 渲染，TUI 高频重绘也顺滑。切标签/切项目进程照跑；关终端**杀整棵进程树**，不留 `pwsh`/`claude` 孤儿。
+- **⚡ 和你的 CLI 无缝配合** —— PATH 兜底目录（npm 全局、`~/bin`、homebrew…）**只追加不前置**，你优先装的 CLI 永远优先。`claude` / `codex` 直接能跑。
+- **⌨️ 真正好用的终端** —— 有选区 Ctrl+C 复制、Ctrl+V / Shift+Insert / 右键粘贴、选中即复制、字号可调（`Ctrl ±`）、拖文件/文件夹插入路径、软重置（`Ctrl+Shift+R`）一键清掉 TUI 崩溃残留（鼠标乱码、花屏、光标丢失），不碰 shell。
+- **🚀 自定义快捷词** —— 一键启动常用 CLI；可增删改（本地保存）。
+- **🫳 拖放落路径** —— 把文件/图片/文件夹拖进终端，真实路径自动敲进命令行。
+- **🪶 极轻量** —— 约 3 MB（Rust 体积优先：`opt-level=z` + LTO + strip），复用系统 WebView（不带 Chromium）。数据跟程序走（`portable-data/`）或留在 `~/.opencodex`。
 
-## 技术栈
+## 安装
 
-两层架构，没有 sidecar：**React（WebView）⟷ Tauri 2（Rust）**。
+从 [Releases](https://github.com/dongsheng123132/opencodex/releases/latest) 下载：
 
-## 开发
+| 平台 | 产物 |
+|---|---|
+| Windows x64 | `OpenCodex-v*-windows-x64-setup.exe`（安装包）或 `*-portable.zip`（解压即用） |
+| macOS Apple 芯片 | `OpenCodex-v*-macos-arm64.dmg` |
+| macOS Intel | `OpenCodex-v*-macos-x86_64.dmg` |
+| Linux x64 | `OpenCodex-v*-linux-x86_64.AppImage` / `.deb` |
+
+每个 Release 附 `SHA256SUMS.txt` 供校验。当前为**未签名构建**，首次运行 Windows SmartScreen / macOS Gatekeeper 可能提示。
+
+## 快速开始
 
 ```bash
 pnpm install            # 装前端依赖
 pnpm tauri dev          # 开发模式（弹窗 + HMR）
-cd src-tauri && cargo check   # Rust 快速类型检查
 pnpm tauri build        # 出 exe + 安装包
 ```
 
-无头自检（不依赖 GUI，验证 PTY + PATH 注入）：
+无头自检（不依赖 GUI）：
 
 ```bash
-cargo run -- --term-test "node --version"
+cargo run -- --term-test "node --version"   # PTY + PATH 注入
+cargo run -- --term-kill-test               # 关闭时进程树清理
 ```
 
 ## 使用
 
 1. 启动 OpenCodex。
-2. 右上角「模型设置」→ 填你的 Base URL / API Key / 模型名（可点预设快速填充）。这些设置仅作用于 OpenCodex 启动的终端与 AI 子进程。
-3. 终端里就能跑 `claude` / `codex` / `gemini` / `aider` / `opencode` 等 CLI —— 没装的话在终端面板里装一下（如 `npm i -g @anthropic-ai/claude-code`）。
-4. 「新建项目」选一个文件夹 → 开干。需要时从顶栏开终端 / 文件 / 浏览器。
+2. **打开文件夹…** → 选项目文件夹 → 出现在项目列表。
+3. 终端里跑任意 CLI —— `claude`、`codex`、`gemini`、`aider`、`opencode`… 或点快捷词一键启动；`+` 可添加自定义快捷词（右键按钮删除）。
+4. `+` 多开终端标签；点标签上的 `×`（点两下确认）关闭。
+
+## 技术栈
+
+两层，无 sidecar：**React（WebView）⟷ Tauri 2（Rust）**。
 
 ## 数据位置
 
-- 会话列表：`~/.opencodex/tasks.json`
-- 模型配置：`~/.opencodex/config.json`（不会写入 Claude Code 全局配置或系统环境变量）
-- 可选便携运行时：`~/.opencodex/runtime/{node,python}`（解压到此即被自动发现并加入 PATH）
+数据根（优先级）：`OPENCODEX_HOME` 环境变量 → exe 旁 `portable-data/`（绿色包/U 盘）→ `~/.opencodex`。
 
-## 协议
+- `<数据根>/tasks.json` —— 项目列表
+- `<数据根>/logs/opencodex.jsonl` —— 本地 bug 日志（纯本地，绝不上传）
 
-[MIT](./LICENSE)。本项目不含任何内置密钥、计费、激活或遥测代码 —— 纯本地工具。
+## 许可证
 
-> "Claude"/"Claude Code" 是 Anthropic 商标，"Codex" 是 OpenAI 商标。OpenCodex 是独立开源项目，与两家公司无隶属/背书关系，仅运行你自行配置的 AI CLI 与模型端点。
+[MIT](./LICENSE)。无内置 Key、无计费、无激活、无遥测——纯本地工具。
 
----
-
-由内部工作台模块剥离全部商业 / 分发逻辑后开源化。
+> "Claude" / "Claude Code" 是 Anthropic 的商标；"Codex" 是 OpenAI 的商标。其他 CLI（Gemini CLI、Aider、opencode）归各自所有者。OpenCodex 是独立开源项目，与上述各方无关，仅运行你自己配置的 CLI 与端点。
