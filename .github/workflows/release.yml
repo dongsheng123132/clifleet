@@ -1,0 +1,185 @@
+name: Build and release
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: opencodex-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  validate:
+    name: Validate versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Check application versions and release tag
+        env:
+          GITHUB_REF: ${{ github.ref }}
+        run: |
+          node <<'NODE'
+          const fs = require('node:fs');
+          const pkg = JSON.parse(fs.readFileSync('package.json', 'utf8'));
+          const tauri = JSON.parse(fs.readFileSync('src-tauri/tauri.conf.json', 'utf8'));
+          const cargo = fs.readFileSync('src-tauri/Cargo.toml', 'utf8');
+          const crateVersion = cargo.match(/^version\s*=\s*"([^"]+)"/m)?.[1];
+          const versions = [pkg.version, tauri.version, crateVersion];
+          if (versions.some((v) => !v) || new Set(versions).size !== 1) {
+            throw new Error(`Version mismatch: package=${pkg.version}, tauri=${tauri.version}, cargo=${crateVersion}`);
+          }
+          if (process.env.GITHUB_REF.startsWith('refs/tags/')) {
+            const tag = process.env.GITHUB_REF.slice('refs/tags/'.length);
+            if (tag !== `v${pkg.version}`) {
+              throw new Error(`Release tag ${tag} does not match app version v${pkg.version}`);
+            }
+          }
+          console.log(`Validated OpenCodex v${pkg.version}`);
+          NODE
+
+  build:
+    name: Build ${{ matrix.id }}
+    needs: validate
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - id: windows-x64
+            os: windows-latest
+            bundles: nsis
+          - id: macos-arm64
+            os: macos-15
+            bundles: dmg
+          - id: macos-x86_64
+            os: macos-15-intel
+            bundles: dmg
+          - id: linux-x86_64
+            os: ubuntu-22.04
+            bundles: appimage,deb
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.33.0
+      - name: Install Linux Tauri dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            build-essential \
+            curl \
+            file \
+            libayatana-appindicator3-dev \
+            libfuse2 \
+            libgtk-3-dev \
+            libssl-dev \
+            libwebkit2gtk-4.1-dev \
+            libxdo-dev \
+            librsvg2-dev \
+            patchelf \
+            wget
+      - name: Install frontend dependencies
+        run: pnpm install --frozen-lockfile
+      - name: Build Tauri bundles
+        env:
+          BUNDLES: ${{ matrix.bundles }}
+        run: pnpm tauri build --bundles "$BUNDLES"
+      - name: Prepare Windows release assets
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          New-Item -ItemType Directory -Force release-assets | Out-Null
+          $installer = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
+          if (-not $installer) { throw 'Tauri NSIS installer was not produced' }
+          Copy-Item $installer.FullName "release-assets/OpenCodex-v$version-windows-x64-setup.exe"
+          node .github/scripts/package-portable.mjs
+      - name: Prepare macOS release assets
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          mkdir -p release-assets
+          dmg=$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print -quit)
+          test -n "$dmg"
+          cp "$dmg" "release-assets/OpenCodex-v${version}-${{ matrix.id }}.dmg"
+      - name: Prepare Linux release assets
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./package.json').version")
+          mkdir -p release-assets
+          appimage=$(find src-tauri/target/release/bundle/appimage -maxdepth 1 -type f -name '*.AppImage' -print -quit)
+          deb=$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print -quit)
+          test -n "$appimage"
+          test -n "$deb"
+          cp "$appimage" "release-assets/OpenCodex-v${version}-linux-x86_64.AppImage"
+          cp "$deb" "release-assets/OpenCodex-v${version}-linux-x86_64.deb"
+      - name: Upload build artifacts
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: actions/upload-artifact@v4
+        with:
+          name: opencodex-${{ matrix.id }}
+          path: release-assets/*
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [validate, build]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: opencodex-*
+          path: release-assets
+          merge-multiple: true
+      - name: Verify complete asset set and generate checksums
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          expected=(
+            "OpenCodex-${VERSION}-windows-x64-setup.exe"
+            "OpenCodex-${VERSION}-windows-x64-portable.zip"
+            "OpenCodex-${VERSION}-macos-arm64.dmg"
+            "OpenCodex-${VERSION}-macos-x86_64.dmg"
+            "OpenCodex-${VERSION}-linux-x86_64.AppImage"
+            "OpenCodex-${VERSION}-linux-x86_64.deb"
+          )
+          for asset in "${expected[@]}"; do
+            test -s "release-assets/$asset" || { echo "Missing release asset: $asset"; exit 1; }
+          done
+          (
+            cd release-assets
+            sha256sum "${expected[@]}" > SHA256SUMS.txt
+          )
+          cat release-assets/SHA256SUMS.txt
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" release-assets/* \
+            --title "OpenCodex $TAG" \
+            --notes "Automated native builds for Windows x64, macOS Apple Silicon/Intel, and Linux x86_64. These builds are unsigned; Windows SmartScreen and macOS Gatekeeper may show warnings. See SHA256SUMS.txt to verify downloaded files."
