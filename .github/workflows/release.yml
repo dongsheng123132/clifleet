@@ -3,6 +3,7 @@ name: Build and release
 on:
   pull_request:
   push:
+    branches: [feat/minimal-terminal]
     tags:
       - "v*"
   workflow_dispatch:
@@ -95,6 +96,7 @@ jobs:
       - name: Install frontend dependencies
         run: pnpm install --frozen-lockfile
       - name: Build Tauri bundles
+        shell: bash
         env:
           BUNDLES: ${{ matrix.bundles }}
         run: pnpm tauri build --bundles "$BUNDLES"
@@ -137,7 +139,12 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: opencodex-${{ matrix.id }}
-          path: release-assets/*
+          path: |
+            release-assets/*.exe
+            release-assets/*.zip
+            release-assets/*.dmg
+            release-assets/*.AppImage
+            release-assets/*.deb
           if-no-files-found: error
           retention-days: 7
 
