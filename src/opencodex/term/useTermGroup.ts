@@ -1,13 +1,9 @@
 /**
- * useTermGroup —— 一组终端会话的管理引擎（从 Terminal.tsx 抽出，复用）。
+ * useTermGroup —— 一组终端会话的管理引擎。
  *
  * 一个 group = 一个 host 容器里多个 xterm 标签，每个标签一个独立 PTY 会话。
- * 独立终端页（TerminalPage）、工作台每个任务的终端面板（TermPanel）、TUI 应用页各持有一个 group，
- * 互不污染。切标签/隐藏 group 只切 display，不杀 PTY（openclaw gateway 等长跑进程续命）。
- *
- * 与原 Terminal.tsx 的两点差异（计划要求）：
- *  1. ensurePty 传 cwd —— 工作台按任务文件夹开终端（cwd 为空 → 后端回落 home，抽屉行为不变）
- *  2. 终端序号 seq 改成实例内 useRef —— 多任务/多 group 不再共用模块级全局，避免 key 撞
+ * 工作台每个项目的终端面板（TermPanel）持有自己的 group，互不污染。
+ * 切标签/隐藏 group 只切 display，不杀 PTY（长跑进程续命）。
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
@@ -39,6 +35,9 @@ const SOFT_RESET_SEQ =
   "\x1b[?1049l" + // 退出备用屏 → 回主缓冲(治花屏)
   "\x1b[?25h"; // 显示光标(TUI 崩溃常把光标藏了)
 
+/** 终端字号持久化 key（localStorage）。 */
+const FONT_KEY = "opencodex.term.font";
+
 type TermSession = {
   key: number;
   title: string;
@@ -52,7 +51,7 @@ type TermSession = {
 };
 
 export type TermGroup = {
-  /** 宿主容器 ref —— 调用方挂到面板/抽屉的终端区 */
+  /** 宿主容器 ref —— 调用方挂到面板的终端区 */
   hostRef: React.RefObject<HTMLDivElement | null>;
   tabs: { key: number; title: string }[];
   activeKey: number | null;
@@ -72,32 +71,17 @@ export type TermGroup = {
 };
 
 /**
- * @param open  group 是否可见（抽屉展开 / 任务激活）。用于 fit + 懒建首个终端。
- * @param cwd   终端工作目录（任务文件夹）；undefined → 后端回落 home。
- * @param pendingCmd 待运行命令（点工具「打开终端」塞进来）；运行后调 onConsumedCmd 清空。
+ * @param open group 是否可见（项目激活）。用于 fit + 懒建首个终端。
+ * @param cwd  终端工作目录（项目文件夹）；undefined → 后端回落 home。
  */
-export function useTermGroup(opts: {
-  open: boolean;
-  cwd?: string;
-  /** 给本 group 的 PTY 打工具 tag（claude/openclaw…），运行面板 list_running 据此识别 */
-  tool?: string;
-  /** 首个终端自动跑的启动命令（工具型会话用，如 "openclaw gateway run"）。过后端白名单。 */
-  initialCmd?: string;
-  pendingCmd?: string | null;
-  onConsumedCmd?: () => void;
-}): TermGroup {
-  const { open, cwd, tool, initialCmd, pendingCmd, onConsumedCmd } = opts;
+export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
+  const { open, cwd } = opts;
   const hostRef = useRef<HTMLDivElement>(null);
   const sessionsRef = useRef<TermSession[]>([]);
   const seqRef = useRef(0); // 实例内序号，不共用模块全局
   const cwdRef = useRef(cwd);
   cwdRef.current = cwd;
-  const toolRef = useRef(tool);
-  toolRef.current = tool;
-  // 启动命令只在首个终端下发一次
-  const initialCmdRef = useRef(initialCmd);
-  const initialFiredRef = useRef(false);
-  // 终端字号（默认 14；全局共享，落盘 kv "term_font_size"，所有终端统一）
+  // 终端字号（默认 14；全局共享，落盘 localStorage，所有终端统一）
   const fontSizeRef = useRef(14);
   const [fontSize, setFontSizeState] = useState(14);
   const [tabs, setTabs] = useState<{ key: number; title: string }[]>([]);
@@ -142,19 +126,20 @@ export function useTermGroup(opts: {
     });
   }, []);
 
-  // 加载持久化字号（一次）
+  // 加载持久化字号（一次，localStorage）
   useEffect(() => {
-    void invoke<string | null>("kv_get", { key: "term_font_size" })
-      .then((v) => {
-        const n = v ? parseInt(v, 10) : NaN;
-        if (!isNaN(n) && n >= 9 && n <= 28) {
-          fontSizeRef.current = n;
-          setFontSizeState(n);
-          for (const s of sessionsRef.current) s.term.options.fontSize = n;
-          fitActive();
-        }
-      })
-      .catch(() => {});
+    try {
+      const v = localStorage.getItem(FONT_KEY);
+      const n = v ? parseInt(v, 10) : NaN;
+      if (!isNaN(n) && n >= 9 && n <= 28) {
+        fontSizeRef.current = n;
+        setFontSizeState(n);
+        for (const s of sessionsRef.current) s.term.options.fontSize = n;
+        fitActive();
+      }
+    } catch {
+      /* ignore */
+    }
   }, [fitActive]);
 
   // 调字号（delta 正负，或绝对值）：应用到本 group 所有终端 + 存盘 + 重 fit
@@ -168,7 +153,11 @@ export function useTermGroup(opts: {
         s.term.options.fontSize = next;
         s.lastCols = -1; // 强制下次 fit 重算（字号变了行列数会变）
       }
-      void invoke("kv_set", { key: "term_font_size", value: String(next) }).catch(() => {});
+      try {
+        localStorage.setItem(FONT_KEY, String(next));
+      } catch {
+        /* ignore */
+      }
       fitActive();
     },
     [fitActive],
@@ -188,19 +177,11 @@ export function useTermGroup(opts: {
           const atBottom = buf.viewportY >= buf.baseY - 1;
           if (atBottom) s.term.scrollToBottom();
         });
-      // 启动命令只给本 group 的第一个 PTY 下发一次
-      let initCmd: string | null = null;
-      if (initialCmdRef.current && !initialFiredRef.current) {
-        initCmd = initialCmdRef.current;
-        initialFiredRef.current = true;
-      }
       const sid = await invoke<string>("term_open", {
         cols: s.term.cols || 80,
         rows: s.term.rows || 24,
         onData,
-        initialCmd: initCmd,
         cwd: cwdRef.current ?? null,
-        tool: toolRef.current ?? null,
       });
       s.sessionId = sid;
       return sid;
@@ -365,7 +346,7 @@ export function useTermGroup(opts: {
       term.focus();
     }, 50);
     return s;
-  }, [ensurePty]);
+  }, [bumpFontSize, ensurePty]);
 
   // 关闭一个终端标签
   const closeTerm = useCallback((key: number) => {
@@ -390,9 +371,8 @@ export function useTermGroup(opts: {
   }, []);
 
   // 切换显示哪个终端（display 切换，不动 PTY）→ 只 fit，不抢焦点。
-  // 不在这里 focus()：否则任何让 open/activeKey effect 重跑的外部重渲染（如对话面板
-  // 动态刷新）都会把焦点从你正在打字的输入框强行抢到终端 → 输入框"失焦消失"。
-  // 焦点只在用户主动操作终端时给（newTerm / 点标签 / 点快捷词），见下方各处显式 focus。
+  // 不在这里 focus()：否则任何让 open/activeKey effect 重跑的外部重渲染都会把焦点
+  // 从你正在打字的地方强行抢到终端。焦点只在用户主动操作终端时给。
   useEffect(() => {
     for (const s of sessionsRef.current) {
       s.el.style.display = s.key === activeKey ? "block" : "none";
@@ -410,25 +390,6 @@ export function useTermGroup(opts: {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
-
-  // 待运行命令：在当前（或新建）终端里跑
-  useEffect(() => {
-    if (!open || !pendingCmd) return;
-    let cancelled = false;
-    (async () => {
-      let s = sessionsRef.current.find((x) => x.key === activeKey);
-      if (!s) s = newTerm();
-      if (!s) return;
-      const sid = await ensurePty(s);
-      if (cancelled || !sid) return;
-      await invoke("term_write", { sessionId: sid, data: pendingCmd + "\r" }).catch(() => {});
-      onConsumedCmd?.();
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, pendingCmd]);
 
   // 在当前激活终端（没有则新建）跑一条命令 —— 终端顶部快捷按钮用
   const runInActive = useCallback(
@@ -482,7 +443,7 @@ export function useTermGroup(opts: {
   }, [fitActive]);
 
   // 卸载：关掉本 group 所有 PTY（仅在调用组件真正卸载时触发——
-  // 工作台靠常驻 + display 切换保活，只有「关闭任务」才卸载 TermPanel）
+  // 工作台靠常驻 + display 切换保活，只有「关闭项目」才卸载 TermPanel）
   useEffect(() => {
     return () => {
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);

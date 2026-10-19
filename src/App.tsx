@@ -1,15 +1,14 @@
 /**
- * OpenCodex —— 开源、绿色的本地编程工作台。
+ * OpenCodex —— 极简的基于文件夹的 CLI 终端工作台。
  *
- * 整屏只装一个 OpenCodex 工作台：左会话列表 + 全宽对话（顶栏可滑出终端/文件/浏览器）。
- * 右上角一个「设置」入口，配自己的模型（Base URL / API Key / 模型名）—— 完全本地，无服务器。
+ * 整屏只装一个工作台：左项目列表 + 右项目终端区。顶栏只有品牌 + 语言切换。
+ * 没有模型配置 / Key / 端点 —— 那些都归 claude、codex 等 CLI 自己管。
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Languages, Settings, Sparkles } from "lucide-react";
+import { Languages, Sparkles } from "lucide-react";
 import { OpenCodex } from "./opencodex/OpenCodex";
-import { SettingsDialog } from "./components/SettingsDialog";
 import { useI18n } from "./i18n";
 
 type AppEnv = {
@@ -20,13 +19,6 @@ type AppEnv = {
 
 export function App() {
   const [env, setEnv] = useState<AppEnv | null>(null);
-  const [toast, setToast] = useState<string | null>(null);
-  const [showSettings, setShowSettings] = useState(false);
-
-  const flash = useCallback((msg: string) => {
-    setToast(msg);
-    window.setTimeout(() => setToast(null), 3200);
-  }, []);
 
   useEffect(() => {
     invoke<AppEnv>("get_env").then(setEnv).catch(() => setEnv(null));
@@ -34,37 +26,19 @@ export function App() {
 
   return (
     <div className="h-full flex flex-col">
-      <TitleBar onSettings={() => setShowSettings(true)} />
-
+      <TitleBar />
       <main className="flex-1 min-w-0 min-h-0 p-3">
-        <OpenCodex
-          openedDir={env?.opened_dir ?? null}
-          homeDir={env?.home_dir ?? null}
-          onToast={flash}
-          onGoManage={() => setShowSettings(true)}
-        />
+        <OpenCodex openedDir={env?.opened_dir ?? null} />
       </main>
-
-      {showSettings && (
-        <SettingsDialog onToast={flash} onClose={() => setShowSettings(false)} />
-      )}
-
-      {toast && (
-        <div className="fixed bottom-5 left-1/2 -translate-x-1/2 z-50 animate-fade-in">
-          <div className="flex items-center gap-2 rounded-full border border-white/[0.10] bg-bg-3/95 backdrop-blur px-4 py-2 text-[13px] text-ink-1 shadow-card">
-            <Sparkles size={14} className="text-accent" />
-            {toast}
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 /* ---------------- 自定义标题栏 ---------------- */
 
-function TitleBar({ onSettings }: { onSettings: () => void }) {
-  const { t, lang, setLang } = useI18n();
+function TitleBar() {
+  const { lang, setLang } = useI18n();
+  const toggleLang = useCallback(() => setLang(lang === "zh" ? "en" : "zh"), [lang, setLang]);
   return (
     <header
       data-tauri-drag-region
@@ -78,20 +52,12 @@ function TitleBar({ onSettings }: { onSettings: () => void }) {
       </div>
       <div className="flex items-center gap-1">
         <button
-          onClick={() => setLang(lang === "zh" ? "en" : "zh")}
+          onClick={toggleLang}
           title="Switch language / 切换语言"
           className="pointer-events-auto inline-flex items-center gap-1 px-2 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
         >
           <Languages size={12} />
           {lang === "zh" ? "EN" : "中文"}
-        </button>
-        <button
-          onClick={onSettings}
-          title={t("Model Settings")}
-          className="pointer-events-auto inline-flex items-center gap-1.5 px-2.5 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
-        >
-          <Settings size={13} />
-          {t("Model Settings")}
         </button>
       </div>
     </header>

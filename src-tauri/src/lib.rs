@@ -1,42 +1,31 @@
-//! OpenCodex —— 开源、绿色的本地编程工作台（Tauri 入口）。
+//! OpenCodex —— 极简的「基于文件夹的 CLI 终端工作台」（Tauri 入口）。
 //!
-//! 以「文件夹」为基础组织会话：选一个项目文件夹 → 和你自己的 AI 模型对话 →
-//! 需要时从对话顶部开应用内真终端、看文件树、开浏览器。常驻保活，切会话不杀 PTY。
-//!
-//! 完全本地、无服务器、无内置 Key —— 用户自带模型（DeepSeek / 本地 ollama / 任意
-//! OpenAI·Anthropic 兼容端点）。
+//! 只做三件事：选文件夹、最近项目列表、每个项目多终端标签。
+//! 不做模型配置 / API Key / 端点 / 文件预览 / 浏览器 / 对话流 —— 那些都归 claude、codex
+//! 等 CLI 自己管；本工作台的终端完整继承用户已配置的环境，不注入任何模型/代理变量。
 //!
 //! 模块分工：
-//! - `paths`   子进程 PATH 注入 + 便携运行时定位（唯一真相源）
-//! - `config`  自带模型配置（只写 ~/.opencodex，子进程临时注入 env）
+//! - `paths`   子进程 PATH 注入（唯一真相源）
 //! - `term`    应用内 PTY 终端（portable_pty）
-//! - `tasks`   会话/任务持久化（~/.opencodex/tasks.json）
-//! - `agent`   结构化 claude 对话流（stream-json → 卡片）
-//! - `fs`      文件面板（list_dir / read_text_file）
+//! - `tasks`   项目/任务持久化（~/.opencodex/tasks.json）
+//! - `logs`    本地 bug 收集（纯本地，无上报）
 //!
 //! 暴露给前端的 command 见底部 `invoke_handler`。
 
-mod agent;
-mod config;
-mod fs;
-mod git;
-mod kv;
 mod logs;
 mod paths;
-mod proxy;
-mod quick;
 mod tasks;
 mod term;
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::Manager;
 
 /// 启动时探测到的环境信息（前端用）。
 #[derive(Debug, Clone, Serialize)]
 struct AppEnv {
     /// 平台（windows / macos / linux）
     platform: String,
-    /// 用户主目录（默认会话用，不必先选文件夹即可开聊）
+    /// 用户主目录（`--open-dir` 之外的回落 cwd 用）
     home_dir: String,
     /// 命令行 `--open-dir` 透传进来的目录（CLI 集成预留），无则空
     opened_dir: Option<String>,
@@ -64,48 +53,6 @@ fn clipboard_read() -> Result<String, String> {
 fn clipboard_write(text: String) -> Result<(), String> {
     let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
     cb.set_text(text).map_err(|e| e.to_string())
-}
-
-/// 把窗口隐藏（最小化到任务栏行为交给系统；这里仅供前端可选调用）。
-#[tauri::command]
-fn hide_window(app: AppHandle) {
-    if let Some(w) = app.get_webview_window("main") {
-        let _ = w.hide();
-    }
-}
-
-/// 工作台「浏览器」面板的兜底：在独立 webview 子窗口打开 URL（localhost / https）。
-/// 大多数页面前端已用内嵌 iframe 直接显示；遇到带 X-Frame-Options DENY 的站点内嵌会白屏，
-/// 用这个弹独立子窗口兜底（子窗口不受 X-Frame-Options 限制）。
-/// label 形如 `browser-<taskId>`，每任务一个，复用则导航。
-///
-/// **必须是同步命令**：Tauri 在 Windows 上从异步线程建窗口会静默失败（窗口压根不弹）。
-/// 同步命令跑在主线程，建窗口才可靠。
-#[tauri::command]
-fn open_browser(app: AppHandle, url: String, label: String) -> Result<(), String> {
-    let ok = url.starts_with("http://localhost")
-        || url.starts_with("http://127.0.0.1")
-        || url.starts_with("https://");
-    if !ok {
-        return Err("只允许 https 或 http://localhost".into());
-    }
-    if !label.starts_with("browser-") {
-        return Err("非法窗口标识".into());
-    }
-    if let Some(w) = app.get_webview_window(&label) {
-        let _ = w.set_focus();
-        let _ = w.eval(&format!("window.location.href={url:?}"));
-        return Ok(());
-    }
-    let parsed = url.parse().map_err(|_| "地址解析失败".to_string())?;
-    WebviewWindowBuilder::new(&app, &label, WebviewUrl::External(parsed))
-        .title("OpenCodex · 浏览器")
-        .inner_size(1000.0, 720.0)
-        .center()
-        .resizable(true)
-        .build()
-        .map_err(|e| format!("打开浏览器窗口失败: {e}"))?;
-    Ok(())
 }
 
 // ============================================================
@@ -161,7 +108,6 @@ pub fn run() {
     }
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(target_os = "macos")]
@@ -172,51 +118,34 @@ pub fn run() {
             }
             Ok(())
         })
+        .on_window_event(|window, event| {
+            // 窗口退出（含点 × 关闭）时杀光所有 PTY 进程树 —— 安全底子，绝不留孤儿。
+            if let tauri::WindowEvent::Destroyed = event {
+                if window.label() == "main" {
+                    term::close_all();
+                }
+            }
+        })
         .invoke_handler(tauri::generate_handler![
             get_env,
-            hide_window,
-            open_browser,
             clipboard_read,
             clipboard_write,
-            config::get_config,
-            config::set_config,
             term::term_open,
             term::term_write,
             term::term_resize,
             term::term_close,
-            term::list_running,
             tasks::list_tasks,
             tasks::upsert_task,
             tasks::remove_task,
             tasks::reorder_tasks,
-            tasks::import_uking_tasks,
-            quick::get_quick_cmds,
-            quick::set_quick_cmds,
-            kv::kv_get,
-            kv::kv_set,
-            kv::kv_keys_with_prefix,
             logs::app_log,
-            logs::read_recent_logs,
-            logs::clear_logs,
-            logs::logs_path,
-            agent::claude::claude_send,
-            agent::claude::claude_interrupt,
-            agent::claude::claude_reset,
-            agent::claude::chatted_tasks,
-            fs::list_dir,
-            fs::read_text_file,
-            fs::create_dir,
-            fs::create_file,
-            fs::rename_path,
-            fs::copy_path,
-            fs::delete_path,
-            fs::reveal_in_file_manager,
-            fs::open_path,
-            git::git_is_repo,
-            git::git_list_branches,
-            git::git_create_worktree,
-            git::git_remove_worktree,
         ])
-        .run(tauri::generate_context!())
-        .expect("启动 OpenCodex 失败");
+        .build(tauri::generate_context!())
+        .expect("启动 OpenCodex 失败")
+        .run(|_app, event| {
+            // 事件循环退出（Cmd+Q / 最后一个窗口关掉后的 RunEvent::Exit 等）再兜底一次。
+            if let tauri::RunEvent::Exit = event {
+                term::close_all();
+            }
+        });
 }

@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "OpenCodex",
-  "version": "0.3.9",
+  "version": "0.5.0",
   "identifier": "org.opencodex.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -22,11 +22,7 @@
       }
     ],
     "security": {
-      "csp": null,
-      "assetProtocol": {
-        "enable": true,
-        "scope": ["**"]
-      }
+      "csp": null
     }
   },
   "bundle": {
@@ -34,8 +30,8 @@
     "targets": ["nsis"],
     "publisher": "OpenCodex",
     "category": "DeveloperTool",
-    "shortDescription": "OpenCodex — 开源本地编程工作台",
-    "longDescription": "OpenCodex：以文件夹为基础的多终端 AI 编程与管理工作台。和你自己的模型对话，内置应用内真终端、文件树、浏览器。完全本地、开源、自带模型，无任何内置 Key 或服务器依赖。",
+    "shortDescription": "OpenCodex — 基于文件夹的 CLI 终端工作台",
+    "longDescription": "OpenCodex：极简的基于文件夹的 CLI 终端工作台。选一个文件夹、开多个终端标签、跑 claude / codex 等 CLI。完全本地、免安装、无内置 Key；模型与端点由 claude、codex 等 CLI 自己管理配置。",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

@@ -1,8 +1,8 @@
 {
   "name": "opencodex",
   "private": true,
-  "version": "0.3.9",
-  "description": "OpenCodex — 开源绿色的本地编程工作台：以文件夹为基础的多终端 AI 编程与管理。自带模型，无服务器、无内置 Key。",
+  "version": "0.5.0",
+  "description": "OpenCodex — 极简的基于文件夹的 CLI 终端工作台：选文件夹、多终端标签、免安装绿色。模型与端点由 claude、codex 等 CLI 自己管理配置，无服务器、无内置 Key。",
   "type": "module",
   "pnpm": {
     "onlyBuiltDependencies": [
@@ -18,14 +18,12 @@
   "dependencies": {
     "@tauri-apps/api": "^2.11.0",
     "@tauri-apps/plugin-dialog": "^2.7",
-    "@tauri-apps/plugin-shell": "^2.3",
     "@xterm/addon-fit": "^0.10.0",
     "@xterm/addon-webgl": "^0.18.0",
     "@xterm/xterm": "^5.5.0",
     "lucide-react": "^1.16.0",
     "react": "^19.1.0",
-    "react-dom": "^19.1.0",
-    "redline-core": "link:../redline/packages/redline-core"
+    "react-dom": "^19.1.0"
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.11.2",

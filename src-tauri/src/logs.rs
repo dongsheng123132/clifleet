@@ -2,12 +2,12 @@
 //!
 //! 前端全局错误（window.onerror / unhandledrejection / console.error）、invoke 失败，
 //! 以及 Rust panic，统一落到 `~/.opencodex/logs/opencodex.jsonl`（每行一条 JSON）。
-//! 开发期可直接 `grep` / 复盘，或前端调 `read_recent_logs` 在 App 里看。
+//! 开发期可直接 `grep` / 复盘。
 //!
 //! 文件超上限自动滚动（丢前半、保留最近），不会无限长大。
 //!
 //! ## 可插拔
-//! 删本文件 + lib.rs 的注册块（`mod logs;` / 4 个 command / `install_panic_hook`）
+//! 删本文件 + lib.rs 的注册块（`mod logs;` / `app_log` / `install_panic_hook`）
 //! + 前端 `bugtrap.ts` 即可完全移除，不动其他任何模块。
 
 use std::fs::OpenOptions;
@@ -76,35 +76,6 @@ fn rotate_if_needed(path: &PathBuf) {
 #[tauri::command]
 pub fn app_log(rec: LogRecord) {
     append(&rec);
-}
-
-/// 读最近 N 条（倒序，最新在前）—— 给 App 内查看 / 开发复盘。
-#[tauri::command]
-pub fn read_recent_logs(limit: usize) -> Vec<LogRecord> {
-    let Ok(data) = std::fs::read_to_string(log_path()) else {
-        return Vec::new();
-    };
-    data.lines()
-        .rev()
-        .take(limit.max(1))
-        .filter_map(|l| serde_json::from_str(l).ok())
-        .collect()
-}
-
-/// 清空日志。
-#[tauri::command]
-pub fn clear_logs() -> Result<(), String> {
-    let p = log_path();
-    if p.exists() {
-        std::fs::write(&p, b"").map_err(|e| e.to_string())?;
-    }
-    Ok(())
-}
-
-/// 日志文件全路径（前端展示 / 调系统打开用）。
-#[tauri::command]
-pub fn logs_path() -> String {
-    log_path().display().to_string()
 }
 
 /// 安装 Rust panic 钩子。`panic=abort` 下进程随后会 abort，但钩子在 abort 前能跑一遍，
