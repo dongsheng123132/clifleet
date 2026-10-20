@@ -1,6 +1,6 @@
 [package]
 name = "opencodex"
-version = "0.5.0"
+version = "0.5.1"
 description = "OpenCodex — 极简的基于文件夹的 CLI 终端工作台：选文件夹、多终端标签、免安装绿色"
 authors = ["OpenCodex Contributors"]
 edition = "2021"
