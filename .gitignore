@@ -15,3 +15,5 @@ src-tauri/target/
 # private AI-assistant config (not for distribution)
 CLAUDE.md
 PROMOTION.md
+
+.tmp/

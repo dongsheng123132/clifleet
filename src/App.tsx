@@ -1,5 +1,5 @@
 /**
- * OpenCodex —— 极简的基于文件夹的 CLI 终端工作台。
+ * CliFleet —— 极简的基于文件夹的 CLI 终端工作台。
  *
  * 整屏只装一个工作台：左项目列表 + 右项目终端区。顶栏只有品牌 + 语言切换。
  * 没有模型配置 / Key / 端点 —— 那些都归 claude、codex 等 CLI 自己管。
@@ -8,7 +8,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { Languages, Sparkles } from "lucide-react";
-import { OpenCodex } from "./opencodex/OpenCodex";
+import { CliFleet } from "./clifleet/CliFleet";
 import { useI18n } from "./i18n";
 
 type AppEnv = {
@@ -28,7 +28,7 @@ export function App() {
     <div className="h-full flex flex-col">
       <TitleBar />
       <main className="flex-1 min-w-0 min-h-0 p-3">
-        <OpenCodex openedDir={env?.opened_dir ?? null} />
+        <CliFleet openedDir={env?.opened_dir ?? null} />
       </main>
     </div>
   );
@@ -48,7 +48,7 @@ function TitleBar() {
         <span className="grid place-items-center w-5 h-5 rounded bg-accent text-white">
           <Sparkles size={12} />
         </span>
-        <span className="text-[12px] font-semibold text-ink-1 tracking-wide">OpenCodex</span>
+        <span className="text-[12px] font-semibold text-ink-1 tracking-wide">CliFleet</span>
       </div>
       <div className="flex items-center gap-1">
         <button

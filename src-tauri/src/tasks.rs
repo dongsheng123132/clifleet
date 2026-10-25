@@ -1,4 +1,4 @@
-//! 工作台「任务」持久化 —— 每个项目绑一个文件夹，落盘 `~/.opencodex/tasks.json`。
+//! 工作台「任务」持久化 —— 每个项目绑一个文件夹，落盘 `~/.clifleet/tasks.json`。
 //!
 //! ## 为什么落盘成单一 JSON
 //! 项目来源（应用内选文件夹 / 命令行 --open-dir 透传）统一写进这份文件。
@@ -141,10 +141,10 @@ pub struct ImportSummary {
     pub source_exists: bool,
 }
 
-/// 从 U-King 工作台导入项目（`~/.uking/tasks.json` → OpenCodex 项目列表）。
+/// 从 U-King 工作台导入项目（`~/.uking/tasks.json` → CliFleet 项目列表）。
 ///
 /// 只增不删：已按目录去重存在的任务计入 skipped，绝不改动已有条目。
-/// U-King 的 `order` 是它自己的排序权重，直接沿用会打乱 OpenCodex 的排序手感，
+/// U-King 的 `order` 是它自己的排序权重，直接沿用会打乱 CliFleet 的排序手感，
 /// 所以导入时统一置 0（0 = 未排/置顶），`last_opened_at` 保留源值便于确定顺序。
 #[tauri::command]
 pub fn import_uking_tasks() -> Result<ImportSummary, String> {

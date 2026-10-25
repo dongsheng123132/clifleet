@@ -1,5 +1,5 @@
 /**
- * OpenCodex 工作台主框架 —— 左项目列表 | 右 项目终端区。
+ * CliFleet 工作台主框架 —— 左项目列表 | 右 项目终端区。
  * 保活：每个项目整组常驻渲染，靠 display 切换显示，切项目不杀 PTY。
  */
 import { useEffect, useRef } from "react";
@@ -66,7 +66,7 @@ function WorkbenchInner({ openedDir }: Props) {
   );
 }
 
-export function OpenCodex(props: Props) {
+export function CliFleet(props: Props) {
   return (
     <WorkbenchProvider>
       <WorkbenchInner {...props} />

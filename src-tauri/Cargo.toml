@@ -1,12 +1,12 @@
 [package]
-name = "opencodex"
-version = "0.5.1"
-description = "OpenCodex — 极简的基于文件夹的 CLI 终端工作台：选文件夹、多终端标签、免安装绿色"
-authors = ["OpenCodex Contributors"]
+name = "clifleet"
+version = "0.6.0"
+description = "CliFleet — 极简的基于文件夹的 CLI 终端工作台：选文件夹、多终端标签、免安装绿色"
+authors = ["CliFleet Contributors"]
 edition = "2021"
 
 [lib]
-name = "opencodex_lib"
+name = "clifleet_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

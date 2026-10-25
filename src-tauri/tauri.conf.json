@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "OpenCodex",
-  "version": "0.5.1",
-  "identifier": "org.opencodex.app",
+  "productName": "CliFleet",
+  "version": "0.6.0",
+  "identifier": "org.clifleet.app",
   "build": {
     "beforeDevCommand": "pnpm dev",
     "devUrl": "http://localhost:1430",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "OpenCodex",
+        "title": "CliFleet",
         "width": 1180,
         "height": 760,
         "minWidth": 900,
@@ -28,10 +28,10 @@
   "bundle": {
     "active": true,
     "targets": ["nsis"],
-    "publisher": "OpenCodex",
+    "publisher": "CliFleet",
     "category": "DeveloperTool",
-    "shortDescription": "OpenCodex — 基于文件夹的 CLI 终端工作台",
-    "longDescription": "OpenCodex：极简的基于文件夹的 CLI 终端工作台。选一个文件夹、开多个终端标签、跑 claude / codex 等 CLI。完全本地、免安装、无内置 Key；模型与端点由 claude、codex 等 CLI 自己管理配置。",
+    "shortDescription": "CliFleet — 基于文件夹的 CLI 终端工作台",
+    "longDescription": "CliFleet：极简的基于文件夹的 CLI 终端工作台。选一个文件夹、开多个终端标签、跑 claude / codex 等 CLI。完全本地、免安装、无内置 Key；模型与端点由 claude、codex 等 CLI 自己管理配置。",
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",

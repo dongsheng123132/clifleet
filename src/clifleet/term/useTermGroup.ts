@@ -36,7 +36,7 @@ const SOFT_RESET_SEQ =
   "\x1b[?25h"; // 显示光标(TUI 崩溃常把光标藏了)
 
 /** 终端字号持久化 key（localStorage）。 */
-const FONT_KEY = "opencodex.term.font";
+const FONT_KEY = "clifleet.term.font";
 
 type TermSession = {
   key: number;

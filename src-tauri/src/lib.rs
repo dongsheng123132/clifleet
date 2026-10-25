@@ -1,4 +1,4 @@
-//! OpenCodex —— 极简的「基于文件夹的 CLI 终端工作台」（Tauri 入口）。
+//! CliFleet —— 极简的「基于文件夹的 CLI 终端工作台」（Tauri 入口）。
 //!
 //! 只做三件事：选文件夹、最近项目列表、每个项目多终端标签。
 //! 不做模型配置 / API Key / 端点 / 文件预览 / 浏览器 / 对话流 —— 那些都归 claude、codex
@@ -7,7 +7,7 @@
 //! 模块分工：
 //! - `paths`   子进程 PATH 注入（唯一真相源）
 //! - `term`    应用内 PTY 终端（portable_pty）
-//! - `tasks`   项目/任务持久化（~/.opencodex/tasks.json）
+//! - `tasks`   项目/任务持久化（~/.clifleet/tasks.json）
 //! - `logs`    本地 bug 收集（纯本地，无上报）
 //!
 //! 暴露给前端的 command 见底部 `invoke_handler`。
@@ -116,7 +116,7 @@ pub fn run() {
 
     let args: Vec<String> = std::env::args().collect();
 
-    // 终端无头验证：opencodex --term-test "<cmd>"（验证 PTY + PATH 注入，不依赖 GUI）
+    // 终端无头验证：clifleet --term-test "<cmd>"（验证 PTY + PATH 注入，不依赖 GUI）
     if let Some(i) = args.iter().position(|a| a == "--term-test") {
         let cmd = args.get(i + 1).cloned().unwrap_or_else(|| "node --version".into());
         match term::headless_run(&cmd, 8000) {
@@ -131,7 +131,7 @@ pub fn run() {
         }
     }
 
-    // 崩溃-清理自检：opencodex --term-kill-test（验证关闭会话杀整棵进程树、不留孤儿）
+    // 崩溃-清理自检：clifleet --term-kill-test（验证关闭会话杀整棵进程树、不留孤儿）
     #[cfg(windows)]
     if args.iter().any(|a| a == "--term-kill-test") {
         println!("{}", term::headless_kill_test());
@@ -181,7 +181,7 @@ pub fn run() {
             logs::app_log,
         ])
         .build(tauri::generate_context!())
-        .expect("启动 OpenCodex 失败")
+        .expect("启动 CliFleet 失败")
         .run(|_app, event| {
             // 事件循环退出（Cmd+Q / 最后一个窗口关掉后的 RunEvent::Exit 等）再兜底一次。
             if let tauri::RunEvent::Exit = event {

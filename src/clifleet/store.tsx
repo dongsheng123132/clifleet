@@ -1,7 +1,7 @@
 /**
  * 工作台状态 —— useReducer + Context（不引 zustand，守体积红线）。
  *
- * 持久化：项目列表落 ~/.opencodex/tasks.json（后端 tasks.rs）。
+ * 持久化：项目列表落 ~/.clifleet/tasks.json（后端 tasks.rs）。
  * 项目来源（应用内选文件夹 / --open-dir 透传）统一经 addTask 写进同一份 tasks.json。
  */
 import { createContext, useContext, useEffect, useReducer, useCallback, useRef } from "react";

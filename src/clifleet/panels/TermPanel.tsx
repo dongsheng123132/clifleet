@@ -27,7 +27,7 @@ const DEFAULT_QUICK_TOOLS: { label: string; cmd: string }[] = [
 ];
 
 /** 快捷词持久化 key（localStorage；存整个列表，label+cmd）。 */
-const QUICK_KEY = "opencodex.quickTools";
+const QUICK_KEY = "clifleet.quickTools";
 
 /** 历史默认集（按 cmd 序列比对）——用于一次性迁移。
  *  只有当用户列表恰好等于某个旧默认集（说明他没改过）时才换成新默认集；

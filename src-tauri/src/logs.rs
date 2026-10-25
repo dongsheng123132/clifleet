@@ -1,7 +1,7 @@
 //! 本地 bug / 错误收集 —— 纯本地、无上报、无服务器。
 //!
 //! 前端全局错误（window.onerror / unhandledrejection / console.error）、invoke 失败，
-//! 以及 Rust panic，统一落到 `~/.opencodex/logs/opencodex.jsonl`（每行一条 JSON）。
+//! 以及 Rust panic，统一落到 `~/.clifleet/logs/clifleet.jsonl`（每行一条 JSON）。
 //! 开发期可直接 `grep` / 复盘。
 //!
 //! 文件超上限自动滚动（丢前半、保留最近），不会无限长大。
@@ -22,7 +22,7 @@ fn logs_dir() -> PathBuf {
 }
 
 fn log_path() -> PathBuf {
-    logs_dir().join("opencodex.jsonl")
+    logs_dir().join("clifleet.jsonl")
 }
 
 /// 一条日志记录（前端传来或 Rust 内部构造）。

@@ -12,7 +12,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: opencodex-release-${{ github.ref }}
+  group: clifleet-release-${{ github.ref }}
   cancel-in-progress: false
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
               throw new Error(`Release tag ${tag} does not match app version v${pkg.version}`);
             }
           }
-          console.log(`Validated OpenCodex v${pkg.version}`);
+          console.log(`Validated CliFleet v${pkg.version}`);
           NODE
 
   build:
@@ -109,7 +109,7 @@ jobs:
           New-Item -ItemType Directory -Force release-assets | Out-Null
           $installer = Get-ChildItem 'src-tauri/target/release/bundle/nsis/*-setup.exe' | Select-Object -First 1
           if (-not $installer) { throw 'Tauri NSIS installer was not produced' }
-          Copy-Item $installer.FullName "release-assets/OpenCodex-v$version-windows-x64-setup.exe"
+          Copy-Item $installer.FullName "release-assets/CliFleet-v$version-windows-x64-setup.exe"
           node .github/scripts/package-portable.mjs
       - name: Prepare macOS release assets
         if: runner.os == 'macOS'
@@ -120,7 +120,7 @@ jobs:
           mkdir -p release-assets
           dmg=$(find src-tauri/target/release/bundle/dmg -maxdepth 1 -type f -name '*.dmg' -print -quit)
           test -n "$dmg"
-          cp "$dmg" "release-assets/OpenCodex-v${version}-${{ matrix.id }}.dmg"
+          cp "$dmg" "release-assets/CliFleet-v${version}-${{ matrix.id }}.dmg"
       - name: Prepare Linux release assets
         if: runner.os == 'Linux'
         shell: bash
@@ -132,13 +132,13 @@ jobs:
           deb=$(find src-tauri/target/release/bundle/deb -maxdepth 1 -type f -name '*.deb' -print -quit)
           test -n "$appimage"
           test -n "$deb"
-          cp "$appimage" "release-assets/OpenCodex-v${version}-linux-x86_64.AppImage"
-          cp "$deb" "release-assets/OpenCodex-v${version}-linux-x86_64.deb"
+          cp "$appimage" "release-assets/CliFleet-v${version}-linux-x86_64.AppImage"
+          cp "$deb" "release-assets/CliFleet-v${version}-linux-x86_64.deb"
       - name: Upload build artifacts
         if: startsWith(github.ref, 'refs/tags/v')
         uses: actions/upload-artifact@v4
         with:
-          name: opencodex-${{ matrix.id }}
+          name: clifleet-${{ matrix.id }}
           path: |
             release-assets/*.exe
             release-assets/*.zip
@@ -159,7 +159,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
         with:
-          pattern: opencodex-*
+          pattern: clifleet-*
           path: release-assets
           merge-multiple: true
       - name: Verify complete asset set and generate checksums
@@ -168,12 +168,12 @@ jobs:
         run: |
           set -euo pipefail
           expected=(
-            "OpenCodex-${VERSION}-windows-x64-setup.exe"
-            "OpenCodex-${VERSION}-windows-x64-portable.zip"
-            "OpenCodex-${VERSION}-macos-arm64.dmg"
-            "OpenCodex-${VERSION}-macos-x86_64.dmg"
-            "OpenCodex-${VERSION}-linux-x86_64.AppImage"
-            "OpenCodex-${VERSION}-linux-x86_64.deb"
+            "CliFleet-${VERSION}-windows-x64-setup.exe"
+            "CliFleet-${VERSION}-windows-x64-portable.zip"
+            "CliFleet-${VERSION}-macos-arm64.dmg"
+            "CliFleet-${VERSION}-macos-x86_64.dmg"
+            "CliFleet-${VERSION}-linux-x86_64.AppImage"
+            "CliFleet-${VERSION}-linux-x86_64.deb"
           )
           for asset in "${expected[@]}"; do
             test -s "release-assets/$asset" || { echo "Missing release asset: $asset"; exit 1; }
@@ -189,5 +189,5 @@ jobs:
           TAG: ${{ github.ref_name }}
         run: |
           gh release create "$TAG" release-assets/* \
-            --title "OpenCodex $TAG" \
+            --title "CliFleet $TAG" \
             --notes "Automated native builds for Windows x64, macOS Apple Silicon/Intel, and Linux x86_64. These builds are unsigned; Windows SmartScreen and macOS Gatekeeper may show warnings. See SHA256SUMS.txt to verify downloaded files."

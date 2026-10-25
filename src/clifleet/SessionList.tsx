@@ -16,13 +16,13 @@ export function SessionList() {
 
   // 收起成窄条（44px），只留展开 + 新建项目两个图标。纯视图偏好，localStorage 记住。
   const [collapsed, setCollapsed] = useState<boolean>(
-    () => localStorage.getItem("opencodex.sidebar.collapsed") === "1",
+    () => localStorage.getItem("clifleet.sidebar.collapsed") === "1",
   );
   const toggleCollapsed = () =>
     setCollapsed((c) => {
       const n = !c;
       try {
-        localStorage.setItem("opencodex.sidebar.collapsed", n ? "1" : "0");
+        localStorage.setItem("clifleet.sidebar.collapsed", n ? "1" : "0");
       } catch {
         /* ignore */
       }
@@ -255,7 +255,7 @@ export function SessionList() {
         </button>
         <span
           className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]"
-          title={t("OpenCodex version")}
+          title={t("CliFleet version")}
         >
           v{__APP_VERSION__}
         </span>

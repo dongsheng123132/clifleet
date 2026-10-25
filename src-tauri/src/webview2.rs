@@ -15,14 +15,14 @@ pub enum Outcome { Ready, Installed, Declined, Failed }
 pub fn ensure() -> Outcome {
     if installed() { return Outcome::Ready; }
     if !ask_yes_no(
-        "OpenCodex 需要 Microsoft Edge WebView2 运行库来显示界面。\n\n这台电脑还没有该运行库。现在从微软官方下载并安装吗？（约 1 分钟）\n\n选择“否”会打开官方下载页，安装后请重新启动 OpenCodex。",
-        "OpenCodex · 缺少 WebView2",
+        "CliFleet 需要 Microsoft Edge WebView2 运行库来显示界面。\n\n这台电脑还没有该运行库。现在从微软官方下载并安装吗？（约 1 分钟）\n\n选择“否”会打开官方下载页，安装后请重新启动 CliFleet。",
+        "CliFleet · 缺少 WebView2",
     ) {
         open_url(DOWNLOAD_PAGE);
         return Outcome::Declined;
     }
     if install_runtime() && installed() { return Outcome::Installed; }
-    alert("WebView2 自动安装没有完成。已打开微软官方下载页；安装完成后请重新启动 OpenCodex。", "OpenCodex · 安装未完成");
+    alert("WebView2 自动安装没有完成。已打开微软官方下载页；安装完成后请重新启动 CliFleet。", "CliFleet · 安装未完成");
     open_url(DOWNLOAD_PAGE);
     Outcome::Failed
 }
@@ -51,7 +51,7 @@ fn installed() -> bool {
 
 #[cfg(windows)]
 fn install_runtime() -> bool {
-    let tmp = std::env::temp_dir().join("opencodex-webview2-setup.exe");
+    let tmp = std::env::temp_dir().join("clifleet-webview2-setup.exe");
     let _ = std::fs::remove_file(&tmp);
     let downloaded = no_window(std::process::Command::new("curl.exe").args(["-fL", "--connect-timeout", "20", "--max-time", "300", "-o", &tmp.to_string_lossy(), BOOTSTRAPPER_URL])).status().map(|s| s.success()).unwrap_or(false);
     let installed = downloaded && tmp.exists() && no_window(std::process::Command::new(&tmp).args(["/silent", "/install"])).status().map(|s| s.success()).unwrap_or(false);

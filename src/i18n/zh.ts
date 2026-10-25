@@ -4,7 +4,7 @@
  */
 
 export const ZH: Record<string, string> = {
-  // —— 主区 / 空态引导（OpenCodex）——
+  // —— 主区 / 空态引导（CliFleet）——
   "Open a folder to get started": "打开一个文件夹，开始干活",
   "Pick a folder — it becomes a project, and the main area is a real terminal\nwhere you can run claude / codex / any CLI.":
     "选一个文件夹作为项目 —— 主区是真实终端，直接跑 claude / codex 等任意 CLI。",
@@ -20,7 +20,7 @@ export const ZH: Record<string, string> = {
   "Double-click to rename": "双击可重命名",
   "Close project (ends its terminal sessions; the folder on disk is untouched)":
     "关闭项目（会结束其中的终端会话；磁盘上的文件夹不动）",
-  "OpenCodex version": "OpenCodex 版本",
+  "CliFleet version": "CliFleet 版本",
   "Import U-King": "导入 U-King",
   "Importing…": "导入中…",
   "Import projects from the U-King workspace (~/.uking/tasks.json)":

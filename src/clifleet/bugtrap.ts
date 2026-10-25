@@ -1,6 +1,6 @@
 /**
  * 本地 bug 收集（前端钩子）—— 捕获未处理错误，转发给 Rust 落盘
- * `~/.opencodex/logs/opencodex.jsonl`。纯本地、无上报、无服务器。
+ * `~/.clifleet/logs/clifleet.jsonl`。纯本地、无上报、无服务器。
  *
  * 捕获：
  *  · window.onerror            —— 同步抛出的未捕获错误

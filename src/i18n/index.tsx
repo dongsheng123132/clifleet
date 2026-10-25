@@ -1,7 +1,7 @@
 /**
  * 轻量 i18n 核心 —— 「英文即 key + 中文覆盖字典 + 缺失回退英文」。
  *
- * 与 U-King 的 i18n 方向相反：OpenCodex 是英文优先的开源项目，组件里保留英文原文，
+ * 与 U-King 的 i18n 方向相反：CliFleet 是英文优先的开源项目，组件里保留英文原文，
  * 渲染时 `t("English text")` 包一层；中文放中央字典 `zh.ts`（`{英文: 中文}`）。
  * 未翻译的串自动回退英文 —— 永不空白/崩，可增量翻译。
  * 自研 ~50 行，不引 react-i18next（守体积红线）。
@@ -15,7 +15,7 @@ import { ZH } from "./zh";
 
 export type Lang = "zh" | "en";
 
-const STORE_KEY = "opencodex.lang";
+const STORE_KEY = "clifleet.lang";
 
 /** 读持久化的语言选择；没有则跟随系统（zh* → 中文）。 */
 function detectDefault(): Lang {

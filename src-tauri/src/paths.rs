@@ -1,4 +1,4 @@
-//! 路径与子进程 PATH 注入 —— OpenCodex 子进程 PATH 的唯一真相源。
+//! 路径与子进程 PATH 注入 —— CliFleet 子进程 PATH 的唯一真相源。
 //!
 //! 双击启动（Explorer / Finder）给的 PATH 往往不含 npm 全局目录、homebrew 等
 //! （它们一般只写进了 shell profile），导致明明装了 claude/codex 却找不到。
@@ -8,15 +8,18 @@
 
 use std::path::{Path, PathBuf};
 
-/// OpenCodex 数据根目录。优先级：
-/// 1. `OPENCODEX_HOME` 环境变量（测试/特殊部署显式指定，隔离验证用）；
-/// 2. exe 旁的 `portable-data/`（绿色包/U 盘场景：数据跟着程序走，不留痕在本机）；
-/// 3. `$HOME/.opencodex`（默认安装形态）。
+/// CliFleet 数据根目录。优先级：
+/// 1. `CLIFLEET_HOME` 环境变量（测试/特殊部署显式指定，隔离验证用）；
+/// 2. `OPENCODEX_HOME` —— v0.5 及更早的环境变量名，保留兼容，老脚本/自检不受改名影响；
+/// 3. exe 旁的 `portable-data/`（绿色包/U 盘场景：数据跟着程序走，不留痕在本机）；
+/// 4. `$HOME/.clifleet`（默认安装形态；首次启动把旧的 `~/.opencodex` 整体迁移过来）。
 /// 任务列表、日志落在这里。
 pub fn app_home() -> PathBuf {
-    if let Ok(dir) = std::env::var("OPENCODEX_HOME") {
-        if !dir.trim().is_empty() {
-            return PathBuf::from(dir);
+    for key in ["CLIFLEET_HOME", "OPENCODEX_HOME"] {
+        if let Ok(dir) = std::env::var(key) {
+            if !dir.trim().is_empty() {
+                return PathBuf::from(dir);
+            }
         }
     }
     if let Ok(exe) = std::env::current_exe() {
@@ -30,7 +33,21 @@ pub fn app_home() -> PathBuf {
     let home = std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
         .unwrap_or_else(|_| ".".into());
-    Path::new(&home).join(".opencodex")
+    let current = Path::new(&home).join(".clifleet");
+    let legacy = Path::new(&home).join(".opencodex");
+    migrate_legacy_home(&current, &legacy);
+    current
+}
+
+/// 一次性迁移旧数据目录：`~/.opencodex` → `~/.clifleet`。
+///
+/// 只在「新目录还不存在、旧目录确实在」时执行，失败静默放弃 ——
+/// 迁移失败也不该挡住启动：新版本会用自己的空目录，旧数据原样留在原处不丢。
+fn migrate_legacy_home(current: &Path, legacy: &Path) {
+    if current.exists() || !legacy.is_dir() {
+        return;
+    }
+    let _ = std::fs::rename(legacy, current);
 }
 
 /// 用户主目录（终端默认 cwd）。
