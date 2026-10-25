@@ -10,6 +10,7 @@ import { invoke, Channel } from "@tauri-apps/api/core";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
+import { HOST_OS, termKeyAction } from "./keymap";
 
 export const TERM_THEME = {
   background: "#0d0d0f",
@@ -207,6 +208,8 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       cursorBlink: true,
       theme: TERM_THEME,
       scrollback: 5000,
+      // mac：Option 当 Meta（Claude Code 的 Option+Enter 换行、readline 的 Alt+B/F 才能用）
+      macOptionIsMeta: HOST_OS === "macos",
     });
     const fit = new FitAddon();
     term.loadAddon(fit);
@@ -261,50 +264,41 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
         navigator.clipboard.writeText(sel).catch(() => {});
       });
     };
+    // 按平台映射（keymap.ts）：Windows Ctrl+C/V、mac Cmd、Linux Ctrl+Shift；返回 null 就原样进 PTY。
     term.attachCustomKeyEventHandler((e) => {
       if (e.type !== "keydown") return true;
-      const mod = e.ctrlKey || e.metaKey;
-      if (mod && (e.key === "v" || e.key === "V")) {
-        // preventDefault 把浏览器的原生 paste 事件一并掐掉 —— 否则本处理器贴一次、
-        // 下面 el 的 "paste" 监听又贴一次，命令/登录码会重复两遍（实测复现）。
-        e.preventDefault();
-        pasteFromClipboard();
-        return false; // 别让 xterm 再处理
+      // 用选区文本是否非空判（不用 hasSelection）：只选中空白格时文本为空，Ctrl+C 仍该是中断
+      switch (termKeyAction(e, HOST_OS, term.getSelection() !== "")) {
+        case "paste":
+          // preventDefault 把浏览器的原生 paste 事件一并掐掉 —— 否则本处理器贴一次、
+          // 下面 el 的 "paste" 监听又贴一次，命令/登录码会重复两遍（实测复现）。
+          e.preventDefault();
+          pasteFromClipboard();
+          return false; // 别让 xterm 再处理
+        case "copy":
+          copySelection(term.getSelection());
+          return false; // 有选区→复制，吞掉（无选区的 Windows Ctrl+C 返回 null，放行 ^C 中断）
+        case "swallow":
+          return false;
+        // 字号：加号 放大、减号 缩小、0 复位 14（VS Code 同款）
+        case "fontUp":
+          bumpFontSize(1);
+          return false;
+        case "fontDown":
+          bumpFontSize(-1);
+          return false;
+        case "fontReset":
+          bumpFontSize(14 - fontSizeRef.current);
+          return false;
+        // 软重置：一键清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失…）。
+        // preventDefault 挡掉 WebView「刷新页面」默认；写 xterm 不发 PTY，shell 命令行不受影响。
+        case "softReset":
+          e.preventDefault();
+          s.term.write(SOFT_RESET_SEQ);
+          return false;
+        default:
+          return true;
       }
-      if (mod && (e.key === "c" || e.key === "C")) {
-        const sel = term.getSelection();
-        if (sel) {
-          copySelection(sel);
-          return false; // 有选区→复制，吞掉
-        }
-        return true; // 无选区→放行（^C 中断）
-      }
-      if (e.shiftKey && e.key === "Insert") {
-        e.preventDefault(); // 同上，防 Shift+Insert 双贴
-        pasteFromClipboard();
-        return false;
-      }
-      // 字号：Ctrl/Cmd + 加号 放大、减号 缩小、0 复位 14（VS Code 同款）
-      if (mod && (e.key === "=" || e.key === "+")) {
-        bumpFontSize(1);
-        return false;
-      }
-      if (mod && (e.key === "-" || e.key === "_")) {
-        bumpFontSize(-1);
-        return false;
-      }
-      if (mod && e.key === "0") {
-        bumpFontSize(14 - fontSizeRef.current);
-        return false;
-      }
-      // 软重置（Ctrl/Cmd+Shift+R）：一键清掉 TUI 崩溃残留的卡死模式（鼠标乱码/花屏/光标消失…）。
-      // preventDefault 挡掉 WebView「刷新页面」默认；写 xterm 不发 PTY，shell 命令行不受影响。
-      if (mod && e.shiftKey && (e.key === "r" || e.key === "R")) {
-        e.preventDefault();
-        s.term.write(SOFT_RESET_SEQ);
-        return false;
-      }
-      return true;
     });
     // 选中即复制（终端惯例）：鼠标选完自动进剪贴板，方便复制 token
     term.onSelectionChange(() => {

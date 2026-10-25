@@ -131,11 +131,12 @@ pub fn run() {
         }
     }
 
-    // 崩溃-清理自检：clifleet --term-kill-test（验证关闭会话杀整棵进程树、不留孤儿）
-    #[cfg(windows)]
+    // 崩溃-清理自检：clifleet --term-kill-test（验证关闭会话杀整棵进程树、不留孤儿）。
+    // 三平台都有；B 组 FAIL 退出码 1，CI / 脚本可直接判。
     if args.iter().any(|a| a == "--term-kill-test") {
-        println!("{}", term::headless_kill_test());
-        std::process::exit(0);
+        let (report, pass) = term::headless_kill_test();
+        println!("{report}");
+        std::process::exit(if pass { 0 } else { 1 });
     }
 
     // 绿色版不带 NSIS 安装器，不能依赖 installer 的 WebView2 bootstrapper。必须在
