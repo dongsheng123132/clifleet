@@ -1,4 +1,4 @@
-# 把正在运行的 CliFleet 窗口截成 docs/screenshot-main.png
+﻿# 把正在运行的 CliFleet 窗口截成 docs/screenshot-main.png
 #
 # 用法：先 scripts\demo-run.ps1 把应用跑起来、摆好两个终端标签，再运行本脚本。
 #   pwsh -File scripts\shot.ps1                 # 存到 docs/screenshot-main.png
