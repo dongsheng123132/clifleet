@@ -46,6 +46,8 @@ jobs:
           }
           console.log(`Validated CliFleet v${pkg.version}`);
           NODE
+      - name: Unit tests
+        run: node --test test/*.test.mjs
 
   build:
     name: Build ${{ matrix.id }}
@@ -100,6 +102,8 @@ jobs:
         env:
           BUNDLES: ${{ matrix.bundles }}
         run: pnpm tauri build --bundles "$BUNDLES"
+      - name: Headless self-tests
+        run: node .github/scripts/selftest.mjs
       - name: Prepare Windows release assets
         if: runner.os == 'Windows'
         shell: pwsh
