@@ -53,7 +53,9 @@ Download from [Releases](https://github.com/dongsheng123132/clifleet/releases/la
 | macOS Intel | `CliFleet-v*-macos-x86_64.dmg` |
 | Linux x64 | `CliFleet-v*-linux-x86_64.AppImage` / `.deb` |
 
-Every release includes `SHA256SUMS.txt` for verification. Builds are currently unsigned — Windows SmartScreen and macOS Gatekeeper may show a warning on first launch.
+Every release includes `SHA256SUMS.txt` for verification. Builds are currently unsigned — Windows SmartScreen and macOS Gatekeeper may show a warning on first launch. Free OSS code signing is planned; see [docs/signing.md](docs/signing.md).
+
+Windows needs the WebView2 runtime (bundled with Windows 11 and most Windows 10 machines; the app offers to install it when missing). If the window never appears, update or reinstall the WebView2 runtime first — very old runtimes fail to create the window.
 
 ## Quick start
 

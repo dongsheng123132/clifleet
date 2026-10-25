@@ -53,7 +53,9 @@ CliFleet 是一个极简的「基于文件夹的 CLI 工作台」：选一个项
 | macOS Intel | `CliFleet-v*-macos-x86_64.dmg` |
 | Linux x64 | `CliFleet-v*-linux-x86_64.AppImage` / `.deb` |
 
-每个 Release 附 `SHA256SUMS.txt` 供校验。当前为**未签名构建**，首次运行 Windows SmartScreen / macOS Gatekeeper 可能提示。
+每个 Release 附 `SHA256SUMS.txt` 供校验。当前为**未签名构建**，首次运行 Windows SmartScreen / macOS Gatekeeper 可能提示。免费开源签名在路上，见 [docs/signing.md](docs/signing.md)。
+
+Windows 需要 WebView2 运行库（Win11 与多数 Win10 自带，缺失时应用会提示安装）。**如果窗口一直不出现，先升级/重装 WebView2 运行库**——过旧的版本会导致窗口创建失败。
 
 ## 快速开始
 
