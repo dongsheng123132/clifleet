@@ -60,13 +60,22 @@ console.log(tail(r.out));
 check("终端里能跑 node", r.code === 0 && /v\d+\.\d+/.test(r.out), `退出码 ${r.code}`);
 
 // ---------- 2. 关会话杀整棵进程树 ----------
-section("关会话杀整棵进程树（--term-kill-test）");
-r = run(bin, ["--term-kill-test"], { timeout: 120_000 });
-console.log(r.out.trim());
-check("kill-test B 组 PASS（退出码 0）", r.code === 0, `退出码 ${r.code} ${r.error ?? ""}`);
-if (platform !== "win32") {
-  const left = run("pgrep", ["-lf", "sleep 100[12]"]);
-  check("没有残留的测试进程（sleep 1001/1002）", left.code !== 0, left.out.trim());
+// 只在 Windows runner 上跑：unix 版要用 `pkill -s <session>` 验证「按会话杀」，
+// 在 GitHub 的 Linux/macOS runner 上会把 runner agent 自己一起带走（整台 job 被取消）。
+// 本地想验就 `CLIFLEET_SELFTEST_KILL=1 node .github/scripts/selftest.mjs`。
+const runKillTest = platform === "win32" || process.env.CLIFLEET_SELFTEST_KILL === "1";
+if (runKillTest) {
+  section("关会话杀整棵进程树（--term-kill-test）");
+  r = run(bin, ["--term-kill-test"], { timeout: 120_000 });
+  console.log(r.out.trim());
+  check("kill-test B 组 PASS（退出码 0）", r.code === 0, `退出码 ${r.code} ${r.error ?? ""}`);
+  if (platform !== "win32") {
+    const left = run("pgrep", ["-lf", "sleep 100[12]"]);
+    check("没有残留的测试进程（sleep 1001/1002）", left.code !== 0, left.out.trim());
+  }
+} else {
+  section("关会话杀整棵进程树（--term-kill-test）");
+  console.log("跳过：unix runner 上按会话杀会误伤 CI agent；本地用 CLIFLEET_SELFTEST_KILL=1 跑全量。");
 }
 
 // ---------- 3. unix：SHELL 回落 ----------
