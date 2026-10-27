@@ -360,6 +360,20 @@
 
         <div class="rounded-xl border border-line bg-white p-5 lg:col-span-2">
           <div class="text-[12px] font-semibold text-muted uppercase tracking-wide">
+            <span class="en">Portable (green) build: create a desktop shortcut</span><span class="zh">绿色版：一键生成桌面快捷方式</span>
+          </div>
+          <div class="mt-2 flex items-start gap-2">
+            <code id="cmd-shortcut" class="flex-1 block rounded-lg bg-ink text-paper/95 font-mono text-[12px] leading-6 p-3 break-all">irm https://u-claw.org.cn/clifleet/shortcut.ps1 | iex</code>
+            <button class="copy shrink-0 h-8 px-2 rounded-md border border-line text-[12px] hover:border-ink/30" data-copy="cmd-shortcut"><span class="en">Copy</span><span class="zh">复制</span></button>
+          </div>
+          <p class="mt-2 text-[12px] text-muted">
+            <span class="en">Unzip anywhere, run that one line, and you get <span class="font-mono">Desktop\CliFleet.lnk</span> + a Start Menu entry — no install, no registry, no admin rights. Portable copies in a custom folder: add <span class="font-mono">-Exe "D:\CliFleet\CliFleet.exe"</span> (download the script to a file first). The portable ZIP also ships <span class="font-mono">Create-Desktop-Shortcut.cmd</span> — just double-click it.</span>
+            <span class="zh">解压到任意目录，跑这一行就得到 <span class="font-mono">桌面\CliFleet.lnk</span> 和开始菜单项——不安装、不写注册表、不要管理员权限。放在自定义目录的绿色版：先下载脚本到本地再加 <span class="font-mono">-Exe "D:\CliFleet\CliFleet.exe"</span>。绿色版 ZIP 里也自带 <span class="font-mono">Create-Desktop-Shortcut.cmd</span>，双击即可。</span>
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-line bg-white p-5 lg:col-span-2">
+          <div class="text-[12px] font-semibold text-muted uppercase tracking-wide">
             <span class="en">Let your AI agent install it</span><span class="zh">让 AI 助手帮你装</span>
           </div>
           <div class="mt-2 flex items-start gap-2">

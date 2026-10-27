@@ -1,4 +1,4 @@
-﻿# 把 CliFleet 站点 + 安装脚本 + 安装包同步到国内镜像：https://u-claw.org.cn/clifleet/
+# 把 CliFleet 站点 + 安装脚本 + 安装包同步到国内镜像：https://u-claw.org.cn/clifleet/
 #
 #   pwsh -File scripts\sync-domestic.ps1                 # 用 package.json 的版本
 #   pwsh -File scripts\sync-domestic.ps1 -SkipBinaries   # 只更新页面/脚本，不搬安装包
@@ -32,6 +32,7 @@ New-Item -ItemType Directory -Force (Join-Path $stage 'assets\shots') | Out-Null
 Copy-Item (Join-Path $root 'site\index.html') $stage
 Copy-Item (Join-Path $root 'site\install.ps1') $stage
 Copy-Item (Join-Path $root 'site\install.sh') $stage
+Copy-Item (Join-Path $root 'site\shortcut.ps1') $stage
 Copy-Item (Join-Path $root 'site\assets\*') (Join-Path $stage 'assets') -Recurse -Force
 
 $enc = New-Object System.Text.UTF8Encoding($false)

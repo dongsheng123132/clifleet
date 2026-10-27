@@ -17,6 +17,7 @@ param(
   [string]$Version = "",
   [string]$InstallDir = "$env:LOCALAPPDATA\Programs\CliFleet",
   [switch]$NoShortcut,
+  [switch]$NoDesktopShortcut,
   [switch]$Launch
 )
 
@@ -101,15 +102,24 @@ try {
   $exe = Join-Path $InstallDir 'CliFleet.exe'
   if (-not (Test-Path $exe)) { throw "CliFleet.exe not found after extraction" }
 
-  if (-not $NoShortcut) {
-    $lnk = Join-Path ([Environment]::GetFolderPath('Programs')) 'CliFleet.lnk'
-    $sh = New-Object -ComObject WScript.Shell
-    $s = $sh.CreateShortcut($lnk)
+  # Shortcuts: Start Menu + Desktop (desktop is what most people click).
+  # -NoShortcut skips both; -NoDesktopShortcut keeps Start Menu only.
+  $sh = New-Object -ComObject WScript.Shell
+  function New-Lnk($path) {
+    $s = $sh.CreateShortcut($path)
     $s.TargetPath = $exe
     $s.WorkingDirectory = $InstallDir
+    $s.IconLocation = "$exe,0"
     $s.Description = 'CliFleet - run several AI coding CLIs side by side'
     $s.Save()
+  }
+  if (-not $NoShortcut) {
+    New-Lnk (Join-Path ([Environment]::GetFolderPath('Programs')) 'CliFleet.lnk')
     Write-Host "  Start Menu shortcut created" -ForegroundColor Green
+    if (-not $NoDesktopShortcut) {
+      New-Lnk (Join-Path ([Environment]::GetFolderPath('Desktop')) 'CliFleet.lnk')
+      Write-Host "  Desktop shortcut created" -ForegroundColor Green
+    }
   }
 
   Write-Host ""

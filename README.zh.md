@@ -70,6 +70,13 @@ curl -fsSL https://u-claw.org.cn/clifleet/install.sh | sh
 
 **重复执行同一条命令就是升级** —— 项目列表和设置存在 `~/.clifleet`，不会被覆盖。
 
+**绿色版（免安装）** —— 解压到任意目录，一行命令生成桌面快捷方式（不安装、不写注册表、不要管理员）：
+
+```powershell
+irm https://u-claw.org.cn/clifleet/shortcut.ps1 | iex
+```
+
+放在自定义目录的：把脚本下载到本地后跑 `powershell -File shortcut.ps1 -Exe "D:\CliFleet\CliFleet.exe"`。后续版本的绿色 ZIP 里也自带 `Create-Desktop-Shortcut.cmd`，双击即可。
 镜像：**<https://u-claw.org.cn/clifleet/>**（国内、已备案、直连快）· <https://clifleet.vercel.app>（海外）。安装脚本默认先走国内源，失败自动回退 GitHub。
 
 ### 或者让 AI 助手帮你装

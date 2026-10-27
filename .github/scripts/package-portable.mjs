@@ -27,6 +27,13 @@ rmSync(stage, { recursive: true, force: true });
 rmSync(zip, { force: true });
 mkdirSync(join(stage, "portable-data"), { recursive: true });
 cpSync(exe, join(stage, "CliFleet.exe"));
+// 绿色版：附一个双击即可建桌面快捷方式的小工具（不联网、不改注册表）
+cpSync(join(root, "site", "shortcut.ps1"), join(stage, "shortcut.ps1"));
+writeFileSync(
+  join(stage, "Create-Desktop-Shortcut.cmd"),
+  "@echo off\r\npowershell -NoProfile -ExecutionPolicy Bypass -File \"%~dp0shortcut.ps1\" -Exe \"%~dp0CliFleet.exe\"\r\n",
+  "utf8",
+);
 writeFileSync(
   join(stage, "portable-data", "README.txt"),
   "CliFleet 的便携数据目录。\r\n\r\n首次启动后，项目列表会保存在这里（tasks.json）。请勿把包含个人数据的此目录再次打包或分享。\r\n",

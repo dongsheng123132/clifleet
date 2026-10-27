@@ -70,6 +70,13 @@ The scripts resolve the latest release, verify `SHA256SUMS.txt`, retry through m
 
 **Re-run the same command to upgrade** — your project list and settings live in `~/.clifleet` and are kept.
 
+**Portable (green) build** — unzip anywhere, then create a desktop shortcut with one line (no install, no registry, no admin):
+
+```powershell
+irm https://u-claw.org.cn/clifleet/shortcut.ps1 | iex
+```
+
+Custom folder: download the script and run `powershell -File shortcut.ps1 -Exe "D:\CliFleet\CliFleet.exe"`. Release ZIPs ship `Create-Desktop-Shortcut.cmd` too — just double-click it.
 Mirrors: **<https://u-claw.org.cn/clifleet/>** (mainland China, ICP-filed, fast) · <https://clifleet.vercel.app> (overseas). The installer tries the domestic source first and falls back to GitHub automatically.
 
 ### Or let your AI agent do it
