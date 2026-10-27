@@ -57,16 +57,20 @@ If you want built-in orchestration — automatic hand-offs between agents, mobil
 **Windows** (PowerShell):
 
 ```powershell
-irm https://clifleet.vercel.app/install.ps1 | iex
+irm https://u-claw.org.cn/clifleet/install.ps1 | iex
 ```
 
 **macOS / Linux**:
 
 ```sh
-curl -fsSL https://clifleet.vercel.app/install.sh | sh
+curl -fsSL https://u-claw.org.cn/clifleet/install.sh | sh
 ```
 
 The scripts resolve the latest release, verify `SHA256SUMS.txt`, retry through mirrors when GitHub is slow, and install without touching your system environment.
+
+**Re-run the same command to upgrade** — your project list and settings live in `~/.clifleet` and are kept.
+
+Mirrors: **<https://u-claw.org.cn/clifleet/>** (mainland China, ICP-filed, fast) · <https://clifleet.vercel.app> (overseas). The installer tries the domestic source first and falls back to GitHub automatically.
 
 ### Or let your AI agent do it
 
@@ -75,11 +79,11 @@ Paste this into Claude Code / Codex / any agent with shell access:
 ```
 请帮我安装 CliFleet（开源的 AI CLI 多终端工作台），按顺序做：
 
-1. Windows 执行：irm https://clifleet.vercel.app/install.ps1 | iex
-   macOS/Linux 执行：curl -fsSL https://clifleet.vercel.app/install.sh | sh
-2. 装完确认 CliFleet 能启动；如果下载失败，把 GitHub 链接换成
-   https://ghfast.top/ 前缀再试（国内镜像）。
-3. 不要修改我的任何模型配置、API Key、代理和环境变量；
+1. Windows 执行：irm https://u-claw.org.cn/clifleet/install.ps1 | iex
+   macOS/Linux 执行：curl -fsSL https://u-claw.org.cn/clifleet/install.sh | sh
+2. 上面是国内源（备案域名、直连快）；如果失败，再换 https://clifleet.vercel.app 或 GitHub Releases 重试。
+3. 重复执行同一命令即升级，项目列表与设置保留在 ~/.clifleet，不要删除它。
+4. 不要修改我的任何模型配置、API Key、代理和环境变量；
    CliFleet 只是终端窗格，claude / codex 等 CLI 的配置保持原样。
 ```
 

@@ -21,3 +21,5 @@ PROMOTION.md
 .demo-data/
 
 .preview-*.png
+
+.deploy/

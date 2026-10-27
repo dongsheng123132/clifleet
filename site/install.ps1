@@ -1,11 +1,13 @@
 # CliFleet one-line installer (Windows)
 #
-#   irm https://clifleet.vercel.app/install.ps1 | iex
+#   irm https://u-claw.org.cn/clifleet/install.ps1 | iex      <- 国内源（推荐）
+#   irm https://clifleet.vercel.app/install.ps1 | iex         <- 海外/备用
 #
-# What it does: resolve the latest release -> download the portable zip ->
+# What it does: resolve the latest version -> download the portable zip ->
 # verify SHA256 -> extract to %LOCALAPPDATA%\Programs\CliFleet -> add a
-# Start Menu shortcut. It does not touch system environment variables,
-# install a service, or modify any CLI configuration.
+# Start Menu shortcut. Re-run it any time to upgrade (your data is kept).
+# It does not touch system environment variables, install a service,
+# or modify any CLI configuration.
 # Uninstall: delete that folder and the shortcut.
 #
 # ASCII only on purpose: this script is piped into `iex` and must not
@@ -20,38 +22,51 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $repo = 'dongsheng123132/clifleet'
-$mirrors = @(
-  'https://github.com',
-  'https://ghfast.top/https://github.com',
-  'https://gh-proxy.com/https://github.com'
+# Domestic mirror first (u-claw.org.cn, already ICP-filed and fast in CN);
+# GitHub + third-party mirrors as fallback.
+$cnBase = 'https://u-claw.org.cn'
+$downloadSources = @(
+  "$cnBase/download/clifleet",
+  "https://github.com/$repo/releases/download",
+  "https://ghfast.top/https://github.com/$repo/releases/download",
+  "https://gh-proxy.com/https://github.com/$repo/releases/download"
 )
 
 function Resolve-Version {
   if ($Version) { return $Version }
+  # 1) domestic version.json (GitHub API is often blocked in CN)
   try {
-    $api = Invoke-RestMethod -Uri "https://api.github.com/repos/$repo/releases/latest" -TimeoutSec 20 -Headers @{ 'User-Agent' = 'clifleet-installer' }
-    if ($api.tag_name) { return $api.tag_name }
+    $v = Invoke-RestMethod -Uri "$cnBase/clifleet/version.json" -TimeoutSec 15 -Headers @{ 'User-Agent' = 'clifleet-installer' }
+    if ($v.version) { return $v.version }
   } catch { }
-  try {
-    $api = Invoke-RestMethod -Uri "https://gh-proxy.com/https://api.github.com/repos/$repo/releases/latest" -TimeoutSec 25 -Headers @{ 'User-Agent' = 'clifleet-installer' }
-    if ($api.tag_name) { return $api.tag_name }
-  } catch { }
-  throw "Could not resolve the latest version. Try: irm <url> | iex; -Version v0.6.0 (or pass -Version v0.6.0)."
+  # 2) GitHub API (fallback)
+  foreach ($u in @(
+      "https://api.github.com/repos/$repo/releases/latest",
+      "https://gh-proxy.com/https://api.github.com/repos/$repo/releases/latest"
+    )) {
+    try {
+      $api = Invoke-RestMethod -Uri $u -TimeoutSec 20 -Headers @{ 'User-Agent' = 'clifleet-installer' }
+      if ($api.tag_name) { return $api.tag_name }
+    } catch { }
+  }
+  throw "Could not resolve the latest version. Pass it explicitly: -Version v0.6.1"
 }
 
 function Get-ReleaseFile($tail, $out) {
-  foreach ($m in $mirrors) {
-    $url = "$m/$repo/releases/download/$tag/$tail"
+  foreach ($src in $downloadSources) {
+    # domestic path has no version segment: /download/clifleet/<file>;
+    # GitHub-style sources need <tag>/<file>
+    $url = if ($src.StartsWith($cnBase)) { "$src/$tail" } else { "$src/$tag/$tail" }
     try {
       Write-Host "  downloading $tail ..." -NoNewline
       Invoke-WebRequest -Uri $url -OutFile $out -TimeoutSec 300 -UseBasicParsing
       Write-Host " ok"
       return $url
     } catch {
-      Write-Host " failed, trying next mirror"
+      Write-Host " failed, trying next source"
     }
   }
-  throw "All download sources failed for $tail (network issue?). You can download manually from GitHub Releases."
+  throw "All download sources failed for $tail. Retry, or download manually from https://u-claw.org.cn/clifleet/"
 }
 
 $tag = Resolve-Version
@@ -79,7 +94,8 @@ try {
     Write-Host "  SHA256 check skipped (manifest unavailable)" -ForegroundColor Yellow
   }
 
-  if (Test-Path $InstallDir) { Remove-Item $InstallDir -Recurse -Force }
+  $hadOld = Test-Path $InstallDir
+  if ($hadOld) { Remove-Item $InstallDir -Recurse -Force }
   New-Item -ItemType Directory -Force $InstallDir | Out-Null
   Expand-Archive -Path $zip -DestinationPath $InstallDir -Force
   $exe = Join-Path $InstallDir 'CliFleet.exe'
@@ -97,8 +113,13 @@ try {
   }
 
   Write-Host ""
-  Write-Host "Installed: $exe" -ForegroundColor Green
-  Write-Host "First run may show 'Windows protected your PC': click More info -> Run anyway (unsigned build; SHA256 published in the release)."
+  if ($hadOld) {
+    Write-Host "Upgraded to $tag  ->  $exe" -ForegroundColor Green
+  } else {
+    Write-Host "Installed $tag  ->  $exe" -ForegroundColor Green
+  }
+  Write-Host "Your project list and settings are kept (they live in %USERPROFILE%\.clifleet)."
+  Write-Host "First run may show 'Windows protected your PC': click More info -> Run anyway (unsigned build)."
   if ($Launch) { Start-Process $exe }
 }
 finally {
