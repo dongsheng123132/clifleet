@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CliFleet — one folder, several AI CLIs, all alive</title>
+<meta name="description" content="CliFleet is a ~3 MB native workbench for running several AI coding CLIs side by side. One folder, many agents. No Node runtime, no localhost server, never touches your CLI config." />
+<meta property="og:title" content="CliFleet — one folder, several AI CLIs, all alive" />
+<meta property="og:description" content="A ~3 MB native window for Claude Code, Codex, opencode and any other CLI. Windows / macOS / Linux. MIT." />
+<meta property="og:image" content="/assets/banner.png" />
+<meta property="og:type" content="website" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151517'/%3E%3Cpath d='M9 11l5 5-5 5' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 21h7' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/assets/app.css" />
+<style>
+  html { scroll-behavior: smooth; }
+  body { -webkit-font-smoothing: antialiased; }
+  .zh { display: none; }
+  html[data-lang="zh"] .en { display: none; }
+  html[data-lang="zh"] .zh { display: inline; }
+  .zh-block { display: none; }
+  html[data-lang="zh"] .en-block { display: none; }
+  html[data-lang="zh"] .zh-block { display: block; }
+  /* 终端示意图：用等宽字排出来的静态说明，不是截图 */
+  .term { background: #151517; border-radius: 12px; }
+  .term-dot { width: 8px; height: 8px; border-radius: 9999px; display: inline-block; }
+  /* 中文标题字距更紧、字号略小，避免长句被挤断 */
+  html[data-lang="zh"] .hero-h1 { letter-spacing: -0.01em; }
+  @media (min-width: 640px) {
+    html[data-lang="zh"] .hero-h1 { font-size: 34px; line-height: 1.28; }
+  }
+</style>
+</head>
+<body class="bg-paper text-ink font-sans">
+
+<header class="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
+  <div class="mx-auto max-w-5xl px-5 h-14 flex items-center justify-between">
+    <a href="#top" class="flex items-center gap-2">
+      <span class="grid place-items-center w-7 h-7 rounded-md bg-ink text-white font-mono text-[13px] font-bold">C</span>
+      <span class="font-semibold tracking-tight">CliFleet</span>
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2 text-[13px] text-muted">
+      <a class="px-2 py-1 hover:text-ink" href="#why">
+        <span class="en">Why</span><span class="zh">为什么</span>
+      </a>
+      <a class="px-2 py-1 hover:text-ink" href="#compare">
+        <span class="en">Compare</span><span class="zh">对比</span>
+      </a>
+      <a class="px-2 py-1 hover:text-ink" href="#download">
+        <span class="en">Download</span><span class="zh">下载</span>
+      </a>
+      <a class="px-2 py-1 hover:text-ink" href="https://github.com/dongsheng123132/clifleet" target="_blank" rel="noreferrer">GitHub</a>
+      <button id="langBtn" class="ml-1 px-2.5 py-1 rounded-md border border-line hover:border-ink/30 text-ink font-medium">中文</button>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- hero -->
+  <section class="mx-auto max-w-5xl px-5 pt-14 pb-10 sm:pt-20">
+    <div class="grid gap-10 md:grid-cols-[1.05fr_0.95fr] md:items-center">
+      <div>
+        <p class="text-[12px] tracking-wide text-muted uppercase">
+          <span class="en">Open source · MIT · Tauri 2 · Windows / macOS / Linux</span>
+          <span class="zh">开源 · MIT · Tauri 2 · Windows / macOS / Linux</span>
+        </p>
+        <h1 class="hero-h1 mt-3 text-[27px] sm:text-[40px] leading-[1.16] font-semibold tracking-tight">
+          <span class="en">One folder. Several AI CLIs.<br />Nothing gets killed.</span>
+          <span class="zh">一个文件夹，几个 AI CLI。<br />谁也不打断。</span>
+        </h1>
+        <p class="mt-4 text-[15px] leading-7 text-muted max-w-xl">
+          <span class="en">CliFleet is a ~3 MB native window for running Claude Code, Codex, opencode or any other CLI side by side — one tab per agent, one folder per project. No Node runtime, no localhost server, and it never touches your CLI config.</span>
+          <span class="zh">CliFleet 是一个约 3 MB 的原生窗口：Claude Code、Codex、opencode 或任意 CLI 并排跑——一个 agent 一个标签，一个文件夹一个项目。不用装 Node、不起本地服务、不碰你的 CLI 配置。</span>
+        </p>
+        <div class="mt-6 flex flex-wrap items-center gap-3">
+          <a href="https://github.com/dongsheng123132/clifleet/releases/latest"
+             class="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-ink text-white text-[14px] font-medium hover:bg-black">
+            <span class="en">Download</span><span class="zh">下载</span>
+            <span class="text-white/50">→</span>
+          </a>
+          <a href="https://github.com/dongsheng123132/clifleet"
+             class="inline-flex items-center h-10 px-4 rounded-lg border border-line text-[14px] hover:border-ink/30">
+            <span class="en">Read the source</span><span class="zh">看源码</span>
+          </a>
+        </div>
+        <p class="mt-4 text-[12px] text-muted font-mono">
+          <span class="en">~3 MB binary · ~1.2 MB Windows installer · unsigned builds (SHA256 published)</span>
+          <span class="zh">约 3 MB 二进制 · Windows 安装包约 1.2 MB · 未签名构建（附 SHA256）</span>
+        </p>
+      </div>
+
+      <div>
+        <img src="/assets/banner.png" alt="CliFleet running claude, codex and opencode side by side" class="w-full rounded-xl border border-line" />
+        <p class="mt-2 text-[11px] text-muted text-center">
+          <span class="en">One window, three CLIs, each in its own real terminal.</span>
+          <span class="zh">一个窗口，三个 CLI，各自一个真终端。</span>
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- why -->
+  <section id="why" class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">What it does, and what it deliberately doesn't</span>
+        <span class="zh">它做什么，以及它故意不做什么</span>
+      </h2>
+      <div class="mt-8 grid gap-6 md:grid-cols-3">
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">01</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">Real terminals, kept alive</span><span class="zh">真终端，进程保活</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Every tab is a real PTY rendered by xterm.js with WebGL. Switching tabs or projects never kills a running agent — come back and the output is still scrolling.</span>
+            <span class="zh">每个标签都是真 PTY，xterm.js + WebGL 渲染。切标签、切项目都不杀进程——切回来输出还在滚。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">02</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">Closing a tab cleans up</span><span class="zh">关标签就清干净</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Closing kills the whole child process tree — session kill on Unix, <code class="font-mono text-[12px]">taskkill /T</code> on Windows. No orphaned node or claude processes piling up after a day of parallel sessions.</span>
+            <span class="zh">关闭时连子进程树一起清——Unix 按会话杀，Windows 走 <code class="font-mono text-[12px]">taskkill /T</code>。跑一天并行会话也不留孤儿 node / claude 进程。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">03</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">Portable, and hands off</span><span class="zh">便携，不插手</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Data can live next to the exe on a USB stick. No telemetry, no model or proxy injection, and PATH fallback dirs are appended — never prepended, so your preferred CLI keeps priority.</span>
+            <span class="zh">数据可以跟着 exe 放 U 盘。无遥测、不注入模型/代理变量；PATH 兜底目录只追加不前置，你优先装的 CLI 永远优先。</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- compare -->
+  <section id="compare" class="border-t border-line">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">Where it sits</span><span class="zh">它站在哪</span>
+      </h2>
+      <p class="mt-2 text-[13px] text-muted max-w-2xl">
+        <span class="en">Different tools, different trade-offs. These are the honest differences, not a scoreboard.</span>
+        <span class="zh">不同工具、不同取舍。下面是诚实差异，不是比分牌。</span>
+      </p>
+      <div class="mt-6 overflow-x-auto">
+        <table class="w-full text-[13px] border-collapse">
+          <thead>
+            <tr class="text-left text-muted border-b border-line">
+              <th class="py-2 pr-4 font-medium"></th>
+              <th class="py-2 px-3 font-medium"><span class="en">GUI</span><span class="zh">图形界面</span></th>
+              <th class="py-2 px-3 font-medium">Windows</th>
+              <th class="py-2 px-3 font-medium"><span class="en">Needs Node / server</span><span class="zh">要 Node / 本地服务</span></th>
+              <th class="py-2 px-3 font-medium"><span class="en">Agent / editor built in</span><span class="zh">内置 agent / 编辑器</span></th>
+            </tr>
+          </thead>
+          <tbody class="align-top">
+            <tr class="border-b border-line bg-white">
+              <td class="py-3 pr-4 font-semibold">CliFleet</td>
+              <td class="py-3 px-3">✓</td>
+              <td class="py-3 px-3">✓</td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3">✗ <span class="text-muted"><span class="en">(shell only)</span><span class="zh">（只做壳）</span></span></td>
+            </tr>
+            <tr class="border-b border-line">
+              <td class="py-3 pr-4 font-semibold">tmux</td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3"><span class="en">via WSL</span><span class="zh">要靠 WSL</span></td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3">✗</td>
+            </tr>
+            <tr class="border-b border-line">
+              <td class="py-3 pr-4 font-semibold">CliDeck</td>
+              <td class="py-3 px-3"><span class="en">browser</span><span class="zh">浏览器</span></td>
+              <td class="py-3 px-3">✓</td>
+              <td class="py-3 px-3">✓ <span class="text-muted">Node</span></td>
+              <td class="py-3 px-3">✓ <span class="text-muted"><span class="en">hand-off</span><span class="zh">自动交接</span></span></td>
+            </tr>
+            <tr class="border-b border-line">
+              <td class="py-3 pr-4 font-semibold">cmux</td>
+              <td class="py-3 px-3">✓</td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3">✗</td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 font-semibold">Codex app</td>
+              <td class="py-3 px-3">✓</td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3">✗</td>
+              <td class="py-3 px-3">✓ <span class="text-muted"><span class="en">own agent</span><span class="zh">自带 agent</span></span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="mt-4 text-[12px] text-muted">
+        <span class="en">If you want built-in orchestration, use CliDeck or Conductor — they do more. CliFleet only gives you the window, and stays out of the way.</span>
+        <span class="zh">想要内置编排，用 CliDeck 或 Conductor，它们做得更多。CliFleet 只给你一个窗口，然后消失。</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- download -->
+  <section id="download" class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">Download</span><span class="zh">下载</span>
+      </h2>
+      <p class="mt-2 text-[13px] text-muted">
+        <span class="en">Every build is produced by GitHub Actions from this repository.</span>
+        <span class="zh">每个构建都由 GitHub Actions 从本仓库直接产出。</span>
+      </p>
+      <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet/releases/latest">
+          <div class="text-[13px] font-semibold">Windows x64</div>
+          <div class="mt-1 text-[12px] text-muted font-mono"><span class="en">setup.exe · portable.zip</span><span class="zh">安装包 · 绿色版 zip</span></div>
+        </a>
+        <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet/releases/latest">
+          <div class="text-[13px] font-semibold">macOS Apple Silicon</div>
+          <div class="mt-1 text-[12px] text-muted font-mono">arm64 .dmg</div>
+        </a>
+        <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet/releases/latest">
+          <div class="text-[13px] font-semibold">macOS Intel</div>
+          <div class="mt-1 text-[12px] text-muted font-mono">x86_64 .dmg</div>
+        </a>
+        <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet/releases/latest">
+          <div class="text-[13px] font-semibold">Linux x64</div>
+          <div class="mt-1 text-[12px] text-muted font-mono">.AppImage · .deb</div>
+        </a>
+        <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet/releases/latest/download/SHA256SUMS.txt">
+          <div class="text-[13px] font-semibold">SHA256SUMS.txt</div>
+          <div class="mt-1 text-[12px] text-muted font-mono"><span class="en">verify your download</span><span class="zh">校验下载文件</span></div>
+        </a>
+        <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet">
+          <div class="text-[13px] font-semibold"><span class="en">Build from source</span><span class="zh">从源码构建</span></div>
+          <div class="mt-1 text-[12px] text-muted font-mono">pnpm install &amp;&amp; pnpm tauri build</div>
+        </a>
+      </div>
+      <div class="mt-5 rounded-lg border border-line bg-paper p-4 text-[12px] leading-6 text-muted">
+        <span class="en"><strong class="text-ink">Unsigned builds.</strong> Windows SmartScreen and macOS Gatekeeper may warn on first launch. Requirements: Windows 10/11 with WebView2 (bundled on Win11; the app offers to install it), macOS 11+, or a modern Linux desktop.</span>
+        <span class="zh"><strong class="text-ink">未签名构建。</strong>首次启动时 Windows SmartScreen / macOS Gatekeeper 可能提示。要求：Windows 10/11 且带 WebView2（Win11 自带；缺失时应用会引导安装）、macOS 11+，或现代 Linux 桌面。</span>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-line">
+  <div class="mx-auto max-w-5xl px-5 py-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-[12px] text-muted">
+    <div>
+      <div class="font-semibold text-ink">CliFleet</div>
+      <div class="mt-1">
+        <span class="en">An independent open-source project. Not affiliated with Anthropic or OpenAI.</span>
+        <span class="zh">独立开源项目，与 Anthropic / OpenAI 无关。</span>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-4">
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet">GitHub</a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet/pulls">
+        <span class="en">Pull requests</span><span class="zh">提交 PR</span>
+      </a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet/blob/main/LICENSE">MIT</a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet/blob/main/docs/signing.md">
+        <span class="en">Signing</span><span class="zh">签名说明</span>
+      </a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = "clifleet.site.lang";
+  var html = document.documentElement;
+  var btn = document.getElementById("langBtn");
+
+  function apply(lang) {
+    html.setAttribute("data-lang", lang);
+    html.setAttribute("lang", lang === "zh" ? "zh-CN" : "en");
+    btn.textContent = lang === "zh" ? "EN" : "中文";
+    var t = {
+      en: "CliFleet — one folder, several AI CLIs, all alive",
+      zh: "CliFleet — 一个文件夹，几个 AI CLI 并排跑"
+    };
+    document.title = t[lang];
+    document.querySelector('meta[name="description"]').setAttribute("content",
+      lang === "zh"
+        ? "CliFleet 是一个约 3 MB 的原生窗口，让 Claude Code、Codex、opencode 等 AI 编程 CLI 并排跑。不装 Node、不起服务、不碰你的配置。"
+        : "CliFleet is a ~3 MB native workbench for running several AI coding CLIs side by side. One folder, many agents. No Node runtime, no localhost server, never touches your CLI config."
+    );
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  // ?lang=en / ?lang=zh 优先（方便分享定向语言版本）
+  var forced = null;
+  try {
+    var q = new URLSearchParams(location.search).get("lang");
+    if (q === "zh" || q === "en") forced = q;
+  } catch (e) {}
+  var initial = forced
+    ? forced
+    : saved === "zh" || saved === "en"
+      ? saved
+      : (navigator.language || "en").toLowerCase().indexOf("zh") === 0 ? "zh" : "en";
+  apply(initial);
+
+  btn.addEventListener("click", function () {
+    var next = html.getAttribute("data-lang") === "zh" ? "en" : "zh";
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>

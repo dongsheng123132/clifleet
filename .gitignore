@@ -19,3 +19,5 @@ PROMOTION.md
 .tmp/
 
 .demo-data/
+
+.preview-*.png

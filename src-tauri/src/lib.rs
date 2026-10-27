@@ -86,6 +86,42 @@ fn reveal_dir(path: String) -> Result<(), String> {
     }
 }
 
+/// 用系统默认浏览器打开一个链接（顶栏 GitHub / PR 入口）。
+///
+/// 只放行 http(s)：这个 command 只服务「点一下去 GitHub」，不是任意程序启动器，
+/// 别让它变成 `file://` 或 `cmd:` 的跳板。
+#[tauri::command]
+fn open_url(url: String) -> Result<(), String> {
+    if !(url.starts_with("https://") || url.starts_with("http://")) {
+        return Err("only http(s) URLs are allowed".into());
+    }
+    #[cfg(windows)]
+    {
+        // cmd /C start：第一个空参数是窗口标题占位，否则 start 会把带引号的 url 当标题
+        std::process::Command::new("cmd")
+            .args(["/C", "start", "", &url])
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(target_os = "macos")]
+    {
+        std::process::Command::new("open")
+            .arg(&url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+    #[cfg(all(unix, not(target_os = "macos")))]
+    {
+        std::process::Command::new("xdg-open")
+            .arg(&url)
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| e.to_string())
+    }
+}
+
 // ============================================================
 // 辅助
 // ============================================================
@@ -170,6 +206,7 @@ pub fn run() {
             clipboard_read,
             clipboard_write,
             reveal_dir,
+            open_url,
             term::term_open,
             term::term_write,
             term::term_resize,

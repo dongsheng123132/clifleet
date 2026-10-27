@@ -7,9 +7,13 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { Languages, Sparkles } from "lucide-react";
+import { GitPullRequest, Languages, Sparkles } from "lucide-react";
 import { CliFleet } from "./clifleet/CliFleet";
 import { useI18n } from "./i18n";
+
+/** 仓库地址 —— 顶栏 PR 入口用；改仓库名只改这一处。 */
+const REPO_URL = "https://github.com/dongsheng123132/clifleet";
+const PR_URL = `${REPO_URL}/pulls`;
 
 type AppEnv = {
   platform: string;
@@ -37,8 +41,11 @@ export function App() {
 /* ---------------- 自定义标题栏 ---------------- */
 
 function TitleBar() {
-  const { lang, setLang } = useI18n();
+  const { lang, setLang, t } = useI18n();
   const toggleLang = useCallback(() => setLang(lang === "zh" ? "en" : "zh"), [lang, setLang]);
+  const openPr = useCallback(() => {
+    invoke("open_url", { url: PR_URL }).catch(() => {});
+  }, []);
   return (
     <header
       data-tauri-drag-region
@@ -51,6 +58,14 @@ function TitleBar() {
         <span className="text-[12px] font-semibold text-ink-1 tracking-wide">CliFleet</span>
       </div>
       <div className="flex items-center gap-1">
+        <button
+          onClick={openPr}
+          title={t("Open the pull request page on GitHub")}
+          className="pointer-events-auto inline-flex items-center gap-1 px-2 h-6 rounded text-ink-3 text-[11px] hover:bg-white/[0.04] hover:text-ink-1 transition-colors"
+        >
+          <GitPullRequest size={12} />
+          PR
+        </button>
         <button
           onClick={toggleLang}
           title="Switch language / 切换语言"

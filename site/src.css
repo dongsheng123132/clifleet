@@ -1,0 +1,4 @@
+/** CliFleet 官网 —— Tailwind 输入文件；产物写 assets/app.css（部署时不需要 CDN）。 */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;

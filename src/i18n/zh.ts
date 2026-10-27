@@ -55,4 +55,7 @@ export const ZH: Record<string, string> = {
   "Click to copy the folder path": "点击复制文件夹路径",
   "Copied!": "已复制！",
   "Open folder in file explorer": "在资源管理器中打开文件夹",
+
+  // —— 标题栏（App）——
+  "Open the pull request page on GitHub": "打开 GitHub 的 PR 页面（提功能 / 报问题）",
 };
