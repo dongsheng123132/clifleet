@@ -1,6 +1,6 @@
 [package]
 name = "clifleet"
-version = "0.6.0"
+version = "0.6.1"
 description = "CliFleet — 极简的基于文件夹的 CLI 终端工作台：选文件夹、多终端标签、免安装绿色"
 authors = ["CliFleet Contributors"]
 edition = "2021"

@@ -1,7 +1,7 @@
 {
   "name": "clifleet",
   "private": true,
-  "version": "0.6.0",
+  "version": "0.6.1",
   "description": "CliFleet — 极简的基于文件夹的 CLI 终端工作台：选文件夹、多终端标签、免安装绿色。模型与端点由 claude、codex 等 CLI 自己管理配置，无服务器、无内置 Key。",
   "type": "module",
   "pnpm": {

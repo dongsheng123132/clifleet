@@ -57,5 +57,6 @@ export const ZH: Record<string, string> = {
   "Open folder in file explorer": "在资源管理器中打开文件夹",
 
   // —— 标题栏（App）——
+  "Open the GitHub repository": "打开 GitHub 仓库",
   "Open the pull request page on GitHub": "打开 GitHub 的 PR 页面（提功能 / 报问题）",
 };
