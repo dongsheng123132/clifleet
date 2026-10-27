@@ -499,6 +499,10 @@ fn spawn_shell_with_jobs(
 /// 旧的 unix 清理算法（只给自检 A 组复现 bug 用）：只打 shell 自己那个进程组。
 #[cfg(not(windows))]
 fn legacy_kill_pgrp(pid: u32) {
+    // pid 0/1 的 `kill -TERM -0` / `-1` 会打到当前进程组甚至整机，自检里绝对不能传
+    if pid <= 1 {
+        return;
+    }
     let p = format!("-{pid}");
     let _ = std::process::Command::new("kill").args(["-TERM", &p]).output();
     let _ = std::process::Command::new("kill").args(["-KILL", &p]).output();
@@ -691,8 +695,14 @@ fn kill_trees(pids: &[u32], mut reap: impl FnMut()) {
     #[cfg(not(windows))]
     {
         use std::time::{Duration, Instant};
-        // pid 0 对 `pkill -s` 表示「当前会话」—— 会误杀 CliFleet 自己，必须排除
-        let sids: Vec<String> = pids.iter().filter(|&&p| p != 0).map(|p| p.to_string()).collect();
+        // pid 0 对 `pkill -s` 表示「当前会话」—— 会误杀 CliFleet 自己，必须排除；
+        // 另外再兜底排掉「本进程自己的会话」（有些启动方式下 PTY 会话与之一致）。
+        let own = current_session_id();
+        let sids: Vec<String> = pids
+            .iter()
+            .filter(|&&p| p != 0 && Some(p) != own)
+            .map(|p| p.to_string())
+            .collect();
         if sids.is_empty() {
             return;
         }
@@ -713,6 +723,26 @@ fn kill_trees(pids: &[u32], mut reap: impl FnMut()) {
         signal("-KILL");
     }
     reap();
+}
+
+/// 本进程所在的会话 id（unix）。用于避免「按会话杀」时误伤自己。
+/// Linux 读 `/proc/self/stat` 第 4 个可解析字段（session）；macOS/BSD 退回 `ps -o sess=`。
+#[cfg(not(windows))]
+fn current_session_id() -> Option<u32> {
+    if let Ok(s) = std::fs::read_to_string("/proc/self/stat") {
+        if let Some(idx) = s.rfind(')') {
+            let f: Vec<&str> = s[idx + 1..].split_whitespace().collect();
+            // 依次是 state / ppid / pgrp / session
+            if let Some(v) = f.get(3).and_then(|x| x.parse::<u32>().ok()) {
+                return Some(v);
+            }
+        }
+    }
+    let out = std::process::Command::new("ps")
+        .args(["-o", "sess=", "-p", &std::process::id().to_string()])
+        .output()
+        .ok()?;
+    String::from_utf8_lossy(&out.stdout).trim().parse::<u32>().ok()
 }
 
 /// 这些会话里是否还有进程（`pgrep -s` 退出码 0 = 有；macOS/BSD 与 Linux procps 都支持只给 `-s`）。

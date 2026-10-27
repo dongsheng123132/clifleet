@@ -36,6 +36,9 @@ if (!bin && platform === "darwin") {
     app = join(dir, name);
     const exeDir = join(app, "Contents/MacOS");
     bin = join(exeDir, readdirSync(exeDir)[0]);
+  } else {
+    // --bundles dmg 只出 dmg 时 bundle/macos 可能不存在，退回裸二进制
+    bin = join(rel, "clifleet");
   }
 } else if (!bin) {
   bin = join(rel, platform === "win32" ? "clifleet.exe" : "clifleet");
