@@ -42,11 +42,14 @@
       <a class="px-2 py-1 hover:text-ink" href="#why">
         <span class="en">Why</span><span class="zh">为什么</span>
       </a>
+      <a class="px-2 py-1 hover:text-ink" href="#shots">
+        <span class="en">Screenshots</span><span class="zh">截图</span>
+      </a>
       <a class="px-2 py-1 hover:text-ink" href="#compare">
         <span class="en">Compare</span><span class="zh">对比</span>
       </a>
-      <a class="px-2 py-1 hover:text-ink" href="#download">
-        <span class="en">Download</span><span class="zh">下载</span>
+      <a class="px-2 py-1 hover:text-ink" href="#install">
+        <span class="en">Install</span><span class="zh">安装</span>
       </a>
       <a class="px-2 py-1 hover:text-ink" href="https://github.com/dongsheng123132/clifleet" target="_blank" rel="noreferrer">GitHub</a>
       <button id="langBtn" class="ml-1 px-2.5 py-1 rounded-md border border-line hover:border-ink/30 text-ink font-medium">中文</button>
@@ -90,10 +93,11 @@
       </div>
 
       <div>
-        <img src="/assets/banner.png" alt="CliFleet running claude, codex and opencode side by side" class="w-full rounded-xl border border-line" />
+        <img src="/assets/shots/hero-en.png" alt="CliFleet running Claude Code and Codex side by side" class="en-block w-full rounded-xl border border-line" />
+        <img src="/assets/shots/hero-zh.png" alt="CliFleet 中文界面：两个标签分别跑 claude 和 codex" class="zh-block w-full rounded-xl border border-line" />
         <p class="mt-2 text-[11px] text-muted text-center">
-          <span class="en">One window, three CLIs, each in its own real terminal.</span>
-          <span class="zh">一个窗口，三个 CLI，各自一个真终端。</span>
+          <span class="en">Two agents, one folder — real screenshot.</span>
+          <span class="zh">同一个文件夹里的两个 agent —— 真机截图。</span>
         </p>
       </div>
     </div>
@@ -137,6 +141,58 @@
             <span class="zh">数据可以跟着 exe 放 U 盘。无遥测、不注入模型/代理变量；PATH 兜底目录只追加不前置，你优先装的 CLI 永远优先。</span>
           </p>
         </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- screenshots -->
+  <section id="shots" class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">Screenshots</span><span class="zh">界面截图</span>
+      </h2>
+      <p class="mt-2 text-[13px] text-muted max-w-2xl">
+        <span class="en">Real screenshots, taken on Windows with a demo workspace. Claude Code, Codex and opencode each get their own tab in the same folder.</span>
+        <span class="zh">真机截图（Windows，演示工作区）。Claude Code、Codex、opencode 各自一个标签，同一个文件夹里并行跑。</span>
+      </p>
+
+      <figure class="mt-6">
+        <img src="/assets/shots/hero-en.png" alt="CliFleet with Claude Code in one tab and Codex in another" class="w-full rounded-xl border border-line" />
+        <figcaption class="mt-2 text-[12px] text-muted">
+          <span class="en">Two agents, one folder: <span class="font-mono">claude</span> in tab 1, <span class="font-mono">codex</span> in tab 2 — switching tabs does not kill either session.</span>
+          <span class="zh">同一个文件夹里的两个 agent：标签 1 跑 claude，标签 2 跑 codex——切标签两边都不中断。</span>
+        </figcaption>
+      </figure>
+
+      <div class="mt-6 grid gap-5 sm:grid-cols-2">
+        <figure>
+          <img src="/assets/shots/codex-tab.png" alt="Codex CLI running inside CliFleet" class="w-full rounded-xl border border-line" />
+          <figcaption class="mt-2 text-[12px] text-muted">
+            <span class="en">Any CLI works — it inherits your environment, so no extra login or key setup.</span>
+            <span class="zh">任意 CLI 都能跑——直接继承你的环境，不用再登录或配 Key。</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="/assets/shots/projects.png" alt="Project list with one folder per project" class="w-full rounded-xl border border-line" />
+          <figcaption class="mt-2 text-[12px] text-muted">
+            <span class="en">One folder = one project. Switch projects and every terminal in it is still running.</span>
+            <span class="zh">一个文件夹 = 一个项目。切项目时，项目里的终端全部还在跑。</span>
+          </figcaption>
+        </figure>
+        <figure>
+          <img src="/assets/shots/close-confirm.png" alt="Closing a tab asks for a second click" class="w-full rounded-xl border border-line" />
+          <figcaption class="mt-2 text-[12px] text-muted">
+            <span class="en">Closing a tab needs a second click, then kills the whole child process tree.</span>
+            <span class="zh">关标签要点两下确认，关掉时连子进程树一起清干净。</span>
+          </figcaption>
+        </figure>
+        <figure class="hidden sm:block">
+          <img src="/assets/shots/hero-zh.png" alt="CliFleet 中文界面" class="w-full rounded-xl border border-line" />
+          <figcaption class="mt-2 text-[12px] text-muted">
+            <span class="en">Bilingual UI — switch English / 中文 from the title bar.</span>
+            <span class="zh">中英双语界面——标题栏一键切换。</span>
+          </figcaption>
+        </figure>
       </div>
     </div>
   </section>
@@ -208,16 +264,118 @@
     </div>
   </section>
 
+  <!-- uking -->
+  <section id="uking" class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <div class="md:flex md:items-start md:justify-between md:gap-10">
+        <div class="md:max-w-2xl">
+          <h2 class="text-[22px] font-semibold tracking-tight">
+            <span class="en">Paired with U-King</span><span class="zh">配合 U-King 用更方便</span>
+          </h2>
+          <p class="mt-3 text-[14px] leading-7 text-muted">
+            <span class="en">U-King is the setup side of the same workflow: it detects and installs the AI CLIs, keeps your model endpoints in order, and manages each tool's own configuration. CliFleet is the daily driver — it opens the window, holds the terminals, and gets out of the way. They don't overlap and they don't fight over your config: U-King configures, CliFleet just runs what's already configured.</span>
+            <span class="zh">U-King 是同一套流程里「装」的那一半：它负责识别并安装 AI CLI、把模型端点理清楚、管好每个工具自己的配置。CliFleet 是每天用的那一半：开窗、托管终端，然后消失。两者不重叠、也不抢配置——U-King 负责配好，CliFleet 负责把已经配好的跑起来。</span>
+          </p>
+          <ul class="mt-4 space-y-2 text-[13px] text-muted">
+            <li class="flex gap-2"><span class="text-accent">→</span>
+              <span class="en">CliFleet can import your project list straight from the U-King workspace (bottom-left button).</span>
+              <span class="zh">CliFleet 可以从 U-King 工作台一键导入项目列表（左下角按钮）。</span>
+            </li>
+            <li class="flex gap-2"><span class="text-accent">→</span>
+              <span class="en">Both are open source and local-only: no accounts, no relay, no telemetry.</span>
+              <span class="zh">两个都开源、都纯本地：不用登录、不经中转、无遥测。</span>
+            </li>
+          </ul>
+          <div class="mt-6 flex flex-wrap gap-3">
+            <a href="https://github.com/dongsheng123132/u-king" target="_blank" rel="noreferrer"
+               class="inline-flex items-center h-9 px-4 rounded-lg border border-line text-[13px] hover:border-ink/30">
+              <span class="en">U-King on GitHub</span><span class="zh">U-King 仓库</span>
+            </a>
+            <a href="https://github.com/dongsheng123132/u-king/releases" target="_blank" rel="noreferrer"
+               class="inline-flex items-center h-9 px-4 rounded-lg border border-line text-[13px] hover:border-ink/30">
+              <span class="en">U-King releases</span><span class="zh">U-King 下载</span>
+            </a>
+          </div>
+        </div>
+        <div class="mt-8 md:mt-0 md:w-64 shrink-0 rounded-xl border border-line bg-paper p-5 text-[12px] leading-6">
+          <div class="font-semibold text-ink mb-2">
+            <span class="en">Division of labour</span><span class="zh">分工</span>
+          </div>
+          <div class="text-muted">
+            <div class="mb-2"><span class="text-ink font-medium">U-King</span><br /><span class="en">install CLIs · endpoints · per-tool config</span><span class="zh">装 CLI · 端点 · 各工具配置</span></div>
+            <div><span class="text-ink font-medium">CliFleet</span><br /><span class="en">windows · tabs · keep alive · clean up</span><span class="zh">窗口 · 标签 · 保活 · 清进程</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
   <!-- download -->
-  <section id="download" class="border-t border-line bg-white">
+  <section id="install" class="border-t border-line">
     <div class="mx-auto max-w-5xl px-5 py-14">
       <h2 class="text-[22px] font-semibold tracking-tight">
-        <span class="en">Download</span><span class="zh">下载</span>
+        <span class="en">Install</span><span class="zh">安装</span>
       </h2>
-      <p class="mt-2 text-[13px] text-muted">
-        <span class="en">Every build is produced by GitHub Actions from this repository.</span>
-        <span class="zh">每个构建都由 GitHub Actions 从本仓库直接产出。</span>
+      <p class="mt-2 text-[13px] text-muted max-w-2xl">
+        <span class="en">One line, or ask your AI agent to do it. Every build is produced by GitHub Actions from this repository.</span>
+        <span class="zh">一行命令，或者让你的 AI 助手代劳。每个构建都由 GitHub Actions 从本仓库直接产出。</span>
       </p>
+
+      <div class="mt-6 grid gap-4 lg:grid-cols-2">
+        <div class="rounded-xl border border-line bg-white p-5">
+          <div class="text-[12px] font-semibold text-muted uppercase tracking-wide">Windows</div>
+          <div class="mt-2 flex items-start gap-2">
+            <code id="cmd-win" class="flex-1 block rounded-lg bg-ink text-paper/95 font-mono text-[12px] leading-6 p-3 break-all">irm https://clifleet.vercel.app/install.ps1 | iex</code>
+            <button class="copy shrink-0 h-8 px-2 rounded-md border border-line text-[12px] hover:border-ink/30" data-copy="cmd-win"><span class="en">Copy</span><span class="zh">复制</span></button>
+          </div>
+          <p class="mt-2 text-[12px] text-muted">
+            <span class="en">Downloads the portable build, checks SHA256, installs to <span class="font-mono">%LOCALAPPDATA%\\Programs\\CliFleet</span>, adds a Start Menu shortcut.</span>
+            <span class="zh">下载绿色版、校验 SHA256、装到 <span class="font-mono">%LOCALAPPDATA%\\Programs\\CliFleet</span>，并建开始菜单快捷方式。</span>
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-line bg-white p-5">
+          <div class="text-[12px] font-semibold text-muted uppercase tracking-wide">macOS / Linux</div>
+          <div class="mt-2 flex items-start gap-2">
+            <code id="cmd-unix" class="flex-1 block rounded-lg bg-ink text-paper/95 font-mono text-[12px] leading-6 p-3 break-all">curl -fsSL https://clifleet.vercel.app/install.sh | sh</code>
+            <button class="copy shrink-0 h-8 px-2 rounded-md border border-line text-[12px] hover:border-ink/30" data-copy="cmd-unix"><span class="en">Copy</span><span class="zh">复制</span></button>
+          </div>
+          <p class="mt-2 text-[12px] text-muted">
+            <span class="en">macOS: downloads the DMG and copies the app to /Applications. Linux: puts the AppImage at <span class="font-mono">~/.local/bin/clifleet</span>.</span>
+            <span class="zh">macOS：下载 DMG 并拷到 /Applications；Linux：把 AppImage 放到 <span class="font-mono">~/.local/bin/clifleet</span>。</span>
+          </p>
+        </div>
+
+        <div class="rounded-xl border border-line bg-white p-5 lg:col-span-2">
+          <div class="text-[12px] font-semibold text-muted uppercase tracking-wide">
+            <span class="en">Let your AI agent install it</span><span class="zh">让 AI 助手帮你装</span>
+          </div>
+          <div class="mt-2 flex items-start gap-2">
+            <code id="cmd-ai" class="flex-1 block rounded-lg bg-paper border border-line font-mono text-[12px] leading-6 p-3 whitespace-pre-wrap">请帮我安装 CliFleet（开源的 AI CLI 多终端工作台），按顺序做：
+
+1. Windows 执行：irm https://clifleet.vercel.app/install.ps1 | iex
+   macOS/Linux 执行：curl -fsSL https://clifleet.vercel.app/install.sh | sh
+2. 装完确认 CliFleet 能启动；如果下载失败，把 GitHub 链接换成
+   https://ghfast.top/ 前缀再试（国内镜像）。
+3. 不要修改我的任何模型配置、API Key、代理和环境变量；
+   CliFleet 只是终端窗格，claude / codex 等 CLI 的配置保持原样。</code>
+            <button class="copy shrink-0 h-8 px-2 rounded-md border border-line text-[12px] hover:border-ink/30" data-copy="cmd-ai"><span class="en">Copy</span><span class="zh">复制</span></button>
+          </div>
+          <p class="mt-2 text-[12px] text-muted">
+            <span class="en">Paste this into Claude Code / Codex / any agent with shell access.</span>
+            <span class="zh">把这段粘给 Claude Code / Codex / 任何有终端权限的助手。</span>
+          </p>
+        </div>
+      </div>
+
+      <p class="mt-4 text-[12px] text-muted">
+        <span class="en">Downloads blocked in your region? Prefix any GitHub link with <span class="font-mono">https://ghfast.top/</span> (third-party mirror) — the installers already retry through it automatically.</span>
+        <span class="zh">下载被墙/很慢？给任意 GitHub 链接加 <span class="font-mono">https://ghfast.top/</span> 前缀（第三方镜像）——两个安装脚本已经会自动逐个镜像重试。</span>
+      </p>
+
+      <h3 class="mt-10 text-[16px] font-semibold tracking-tight">
+        <span class="en">Or grab a file directly</span><span class="zh">或者直接拿文件</span>
+      </h3>
       <div class="mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <a class="rounded-xl border border-line p-4 hover:border-ink/40" href="https://github.com/dongsheng123132/clifleet/releases/latest">
           <div class="text-[13px] font-semibold">Windows x64</div>
@@ -274,6 +432,39 @@
     </div>
   </div>
 </footer>
+
+<script>
+/* 复制按钮：点一下把对应 code 块的文本写进剪贴板，按钮短暂显示 ✓ */
+(function () {
+  document.querySelectorAll("button.copy").forEach(function (btn) {
+    btn.addEventListener("click", function () {
+      var el = document.getElementById(btn.getAttribute("data-copy"));
+      if (!el) return;
+      var text = el.innerText;
+      var html = btn.innerHTML;
+      var done = function () {
+        btn.textContent = "✓";
+        setTimeout(function () { btn.innerHTML = html; }, 1200);
+      };
+      var fallback = function () {
+        var ta = document.createElement("textarea");
+        ta.value = text;
+        ta.style.position = "fixed";
+        ta.style.opacity = "0";
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand("copy"); done(); } catch (e) {}
+        document.body.removeChild(ta);
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(text).then(done).catch(fallback);
+      } else {
+        fallback();
+      }
+    });
+  });
+})();
+</script>
 
 <script>
 (function () {

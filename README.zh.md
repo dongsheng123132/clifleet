@@ -20,7 +20,15 @@ CliFleet 是一个极简的「基于文件夹的 CLI 工作台」：选一个项
 
 **完全本地、开源、无内置 Key、无服务器。** 模型与端点配置放在**你自己的 CLI 里**（cc-switch、magpie 或 CLI 自带配置都行）——终端完整继承你的环境，**不注入任何模型/代理变量**。
 
-![CliFleet 主界面 —— 项目列表、终端标签、快捷启动](docs/screenshot-main.png)
+![CliFleet —— 标签 1 跑 claude，标签 2 跑 codex](docs/shots/hero-zh.png)
+
+真机截图：同一个项目文件夹里，标签 1 跑 `claude`，标签 2 跑 `codex`；切标签两边都不中断。
+
+| ![CliFleet 里跑 Codex CLI](docs/shots/codex-tab.png) | ![一个文件夹一个项目](docs/shots/projects.png) |
+|---|---|
+| 任意 CLI 都能跑——直接继承你的环境 | 一个文件夹 = 一个项目；切项目时终端全部保活 |
+
+**官网（中 / 英）：<https://clifleet.vercel.app>**
 
 ## 为什么还要一个 AI 工作台？
 
@@ -43,6 +51,39 @@ CliFleet 是一个极简的「基于文件夹的 CLI 工作台」：选一个项
 - **🪶 极轻量** —— 约 3 MB（Rust 体积优先：`opt-level=z` + LTO + strip），复用系统 WebView（不带 Chromium）。数据跟程序走（`portable-data/`）或留在 `~/.clifleet`。
 
 ## 安装
+
+### 一行命令
+
+**Windows**（PowerShell）：
+
+```powershell
+irm https://clifleet.vercel.app/install.ps1 | iex
+```
+
+**macOS / Linux**：
+
+```sh
+curl -fsSL https://clifleet.vercel.app/install.sh | sh
+```
+
+脚本会自动取最新版本、校验 `SHA256SUMS.txt`、GitHub 慢时逐个镜像重试，装完不改系统环境变量。
+
+### 或者让 AI 助手帮你装
+
+把下面这段粘给 Claude Code / Codex / 任何有终端权限的助手：
+
+```
+请帮我安装 CliFleet（开源的 AI CLI 多终端工作台），按顺序做：
+
+1. Windows 执行：irm https://clifleet.vercel.app/install.ps1 | iex
+   macOS/Linux 执行：curl -fsSL https://clifleet.vercel.app/install.sh | sh
+2. 装完确认 CliFleet 能启动；如果下载失败，把 GitHub 链接换成
+   https://ghfast.top/ 前缀再试（国内镜像）。
+3. 不要修改我的任何模型配置、API Key、代理和环境变量；
+   CliFleet 只是终端窗格，claude / codex 等 CLI 的配置保持原样。
+```
+
+### 手动下载
 
 从 [Releases](https://github.com/dongsheng123132/clifleet/releases/latest) 下载：
 
@@ -80,6 +121,10 @@ cargo run -- --term-kill-test               # 关闭时进程树清理
 2. **打开文件夹…** → 选项目文件夹 → 出现在项目列表。
 3. 终端里跑任意 CLI —— `claude`、`codex`、`opencode`、`pi`… 或点快捷词一键启动；`+` 可添加自定义快捷词（右键按钮删除）。
 4. `+` 多开终端标签；点标签上的 `×`（点两下确认）关闭。
+
+## 配合 U-King 用更方便
+
+[U-King](https://github.com/dongsheng123132/u-king) 负责「装」的那一半：识别并安装 AI CLI、把每个工具的端点配置理顺。CliFleet 负责每天用的那一半：开窗、托管终端，然后消失。项目列表可以从 U-King 工作台一键导入（左下角按钮）。
 
 ## 技术栈
 

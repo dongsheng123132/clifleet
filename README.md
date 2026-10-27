@@ -20,7 +20,15 @@ CliFleet is a minimal folder-based CLI workbench: pick a project folder → the 
 
 **Fully local, open-source, no keys, no server.** CliFleet ships no API keys and points at no relay of its own. Model and endpoint configuration lives **inside your own CLIs** (via cc-switch, magpie, or the CLI's own config) — the terminal inherits your environment exactly as-is and never injects model or proxy variables.
 
-![CliFleet main UI — project list, terminal tabs, quick launch commands](docs/screenshot-main.png)
+![CliFleet — Claude Code in one tab, Codex in another](docs/shots/hero-en.png)
+
+Real screenshot: `claude` in tab 1, `codex` in tab 2, same project folder. Switching tabs does not kill either session.
+
+| ![Codex CLI running inside CliFleet](docs/shots/codex-tab.png) | ![One folder per project](docs/shots/projects.png) |
+|---|---|
+| Any CLI works — it inherits your environment as-is | One folder = one project; switching projects keeps every terminal alive |
+
+**Website (EN / 中文): <https://clifleet.vercel.app>**
 
 ## Why another AI workbench?
 
@@ -43,6 +51,39 @@ If you want built-in orchestration — automatic hand-offs between agents, mobil
 - **🪶 Portable** — ~3 MB binary (size-first Rust profile: `opt-level=z` + LTO + strip), reusing the system WebView (no bundled Chromium). Data follows the exe (`portable-data/`) or stays in `~/.clifleet`.
 
 ## Install
+
+### One line
+
+**Windows** (PowerShell):
+
+```powershell
+irm https://clifleet.vercel.app/install.ps1 | iex
+```
+
+**macOS / Linux**:
+
+```sh
+curl -fsSL https://clifleet.vercel.app/install.sh | sh
+```
+
+The scripts resolve the latest release, verify `SHA256SUMS.txt`, retry through mirrors when GitHub is slow, and install without touching your system environment.
+
+### Or let your AI agent do it
+
+Paste this into Claude Code / Codex / any agent with shell access:
+
+```
+请帮我安装 CliFleet（开源的 AI CLI 多终端工作台），按顺序做：
+
+1. Windows 执行：irm https://clifleet.vercel.app/install.ps1 | iex
+   macOS/Linux 执行：curl -fsSL https://clifleet.vercel.app/install.sh | sh
+2. 装完确认 CliFleet 能启动；如果下载失败，把 GitHub 链接换成
+   https://ghfast.top/ 前缀再试（国内镜像）。
+3. 不要修改我的任何模型配置、API Key、代理和环境变量；
+   CliFleet 只是终端窗格，claude / codex 等 CLI 的配置保持原样。
+```
+
+### Manual
 
 Download from [Releases](https://github.com/dongsheng123132/clifleet/releases/latest):
 
@@ -80,6 +121,10 @@ cargo run -- --term-kill-test               # process-tree cleanup on close
 2. **Open folder…** → pick a project folder → it appears in the project list.
 3. Run any CLI in the terminal — `claude`, `codex`, `opencode`, `pi`… or click a quick command. Add your own quick commands with the `+` button (right-click a button to remove it).
 4. Open more terminal tabs with `+`; close with the tab's `×` (click twice to confirm).
+
+## Pairs well with U-King
+
+[U-King](https://github.com/dongsheng123132/u-king) is the setup side of the same workflow: it detects and installs the AI CLIs and keeps each tool's endpoint configuration in order. CliFleet is the daily driver — it opens the window, holds the terminals, and gets out of the way. Project lists can be imported straight from a U-King workspace with the bottom-left button.
 
 ## Stack
 
