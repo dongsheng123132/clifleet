@@ -4,6 +4,8 @@
 
 # CliFleet
 
+作者 / 维护者：贺去病（贺方升 / Dosen）· [hequbing.com](https://www.hequbing.com)
+
 [English](./README.md) · **简体中文**
 
 ### 约 3 MB 的原生工作台 —— 一个文件夹里同时跑多个 AI 编程 CLI，进程全程保活。

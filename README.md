@@ -4,6 +4,8 @@
 
 # CliFleet
 
+**Maintainer / Author：贺去病 (He Fangsheng / Dosen) · [hequbing.com](https://www.hequbing.com)**
+
 **English** · [简体中文](./README.zh.md)
 
 ### A ~3 MB native workbench for running several AI coding CLIs side by side — one folder, many agents, all alive.
