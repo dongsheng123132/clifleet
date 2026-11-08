@@ -139,6 +139,8 @@ cargo run -- --term-kill-test               # 关闭时进程树清理
 
 [U-King](https://github.com/dongsheng123132/u-king) 负责「装」的那一半：识别并安装 AI CLI、把每个工具的端点配置理顺。CliFleet 负责每天用的那一半：开窗、托管终端，然后消失。项目列表可以从 U-King 工作台一键导入（左下角按钮）。
 
+也可以把 CliFleet 的项目合并到 U-King 工作台：运行 `node scripts/sync-uking-workspace.mjs` 预览；确认后加 `--apply` 写入。脚本会先备份 U-King 项目列表，按目录和 ID 去重，只输出数量，不打印项目名称。
+
 ## 技术栈
 
 两层，无 sidecar：**React（WebView）⟷ Tauri 2（Rust）**。
