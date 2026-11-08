@@ -45,6 +45,36 @@
   多轮靠 `--resume <session_id>` 续接。
 - **UI 保活**：CliFleet 整组常驻渲染，靠 `display` 切换（切会话不卸载 → PTY/历史续存）。
 
+## 已知缺陷与修复记录（2026-11-08 会审后）
+
+> ⚠️ 架构修正：下方「架构」表里的 `get_config/set_config`（config.rs）与 `agent/Codex.rs` **已移除**，
+> 本 fork 是纯终端工作台，不做模型配置/API Key/对话流。真实 command 以 `lib.rs::invoke_handler` 为准。
+
+### 终端乱码（中英混排重叠/挤压）— 已修
+- **症状**：xterm 终端里 hermes/claude 等 CLI 输出的中文+ASCII 紧邻处视觉重叠；富文本框线（`─│┌→`）混排处最明显。
+- **根因**（本机实测 + 6 模型会审收敛，`review_term_乱码_brief.md` + `_out/REPORT.md`）：
+  1. `fontFamily: '"JetBrains Mono", ui-monospace, monospace'` —— 本机没装 JetBrains Mono，且 `ui-monospace`
+     在 WebKit/Tauri 的 canvas 里解析不稳会被静默回退 → CJK 落到不可控系统字体，与 ASCII 度量错位。
+  2. `─│┌→` 是东亚 Ambiguous 宽度字符（`east_asian_width=A`），xterm 与字体对"占 1 还是 2 列"可能不一致。
+  3. WebGL 渲染器（`@xterm/addon-webgl`）对 fallback 字形度量与 xterm 内部单元格宽度不一致 → 字形溢出邻格。
+- **修复**：`useTermGroup.ts::newTerm` 字体栈改为
+  `'"JetBrains Mono", Menlo, Monaco, "SF Mono", Consolas, "DejaVu Sans Mono", "PingFang SC", "Microsoft YaHei", "Noto Sans Mono CJK SC", monospace'`，
+  显式给半角回退 + CJK 具名 fallback。**验证**：`pnpm build` + `cargo test`（5 passed）全绿。
+- **未做（会审判"不该做"）**：装 JetBrains Mono（无完整中文覆盖，掩盖不根治，用户机器不会都装）；
+  裸加 `unicodeVersion`（需先装 `@xterm/addon-unicode11` 注册 provider，本 fork 未装）。
+- **遗留**：若改字体栈后仍有个别段落错位，再考虑"关闭 WebGL addon 回退 DOM 渲染"做 A/B 对照定位。
+
+### 剪贴板图片临时文件无限累积 — 已修
+- **根因**：`lib.rs::clipboard_read_image` 每次写 `temp_dir()/clifleet-paste/image-<pid>-<n>.png` 从不清理。
+- **修复**：加 `cleanup_stale_paste_images`，每次粘贴顺带删除 >24h 的旧图（保留近期可能未读完的）。幂等、失败静默。
+
+### 会审判定的其它项（未改 / 低优先级，达成共识）
+- **`term_write` 的 `\r\n→\r` 两步替换是"伪 bug"**：`.replace(/\r\n/g,'\r').replace(/\n/g,'\r')` 先吃 CRLF 再处理孤立 LF，
+  不会产生 `\r\r`。裁判们是正则脑算错了，**不要盲改**（会引 bracketed-paste 复杂度）。
+- **id 字符串撞车**（`reorder_tasks`）：真实风险但"未对外承诺/未真机验证"，P2。若要做：id 加来源前缀
+  （`uking:`/`dsh:`/`new:`）或统一 `crypto.randomUUID()`。
+- **DSH 导入只导路径不导会话**：设计边缘非 bug；schema 未真机验证是兼容性缺口，建议加 try/catch 防 parse 崩溃静默。
+
 ## 常用命令
 
 ```bash

@@ -49,6 +49,59 @@ fn clipboard_read() -> Result<String, String> {
     Ok(cb.get_text().unwrap_or_default())
 }
 
+/// 清掉 clifleet-paste 里超过 24h 的临时图片，防长期使用临时目录无界膨胀。
+/// 只删 mtime > TTL 的（保留最近 24h 内刚粘贴、CLI 可能还没读完的），不误伤其它进程文件。
+/// 幂等、失败静默——清理是尽力而为，不阻塞粘贴主流程。
+fn cleanup_stale_paste_images(dir: &std::path::Path) {
+    use std::time::{Duration, SystemTime};
+    if !dir.is_dir() {
+        return;
+    }
+    let cutoff = SystemTime::now() - Duration::from_secs(24 * 60 * 60);
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for entry in rd.flatten() {
+            let Ok(meta) = entry.metadata() else { continue };
+            if !meta.is_file() {
+                continue;
+            }
+            let stale = meta
+                .modified()
+                .map(|m| m < cutoff)
+                .unwrap_or(false);
+            if stale {
+                let _ = std::fs::remove_file(entry.path());
+            }
+        }
+    }
+}
+
+/// 把系统剪贴板图片写成临时 PNG，返回文件路径供交互式 CLI 读取。
+/// 终端协议没有通用的「把剪贴板位图作为附件」通道，因此采用可跨 CLI 使用的本地文件路径。
+#[tauri::command]
+fn clipboard_read_image() -> Result<String, String> {
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT_IMAGE: AtomicU64 = AtomicU64::new(0);
+    let mut cb = arboard::Clipboard::new().map_err(|e| e.to_string())?;
+    let image = cb.get_image().map_err(|e| e.to_string())?;
+    if image.width == 0 || image.height == 0 {
+        return Err("剪贴板图片为空".into());
+    }
+
+    let dir = std::env::temp_dir().join("clifleet-paste");
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    cleanup_stale_paste_images(&dir); // 每次粘贴顺带清一次 >24h 的旧图，防临时目录无界膨胀
+    let id = NEXT_IMAGE.fetch_add(1, Ordering::Relaxed);
+    let path = dir.join(format!("image-{}-{id}.png", std::process::id()));
+    let file = std::fs::File::create(&path).map_err(|e| e.to_string())?;
+    let mut encoder = png::Encoder::new(file, image.width as u32, image.height as u32);
+    encoder.set_color(png::ColorType::Rgba);
+    encoder.set_depth(png::BitDepth::Eight);
+    let mut writer = encoder.write_header().map_err(|e| e.to_string())?;
+    writer.write_image_data(&image.bytes).map_err(|e| e.to_string())?;
+    Ok(path.to_string_lossy().into_owned())
+}
+
 /// 写系统剪贴板文本（终端选区复制用）。
 #[tauri::command]
 fn clipboard_write(text: String) -> Result<(), String> {
@@ -204,6 +257,7 @@ pub fn run() {
         .invoke_handler(tauri::generate_handler![
             get_env,
             clipboard_read,
+            clipboard_read_image,
             clipboard_write,
             reveal_dir,
             open_url,
@@ -215,7 +269,7 @@ pub fn run() {
             tasks::upsert_task,
             tasks::remove_task,
             tasks::reorder_tasks,
-            tasks::import_uking_tasks,
+            tasks::import_workspaces,
             logs::app_log,
         ])
         .build(tauri::generate_context!())

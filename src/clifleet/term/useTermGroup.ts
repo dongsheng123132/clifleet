@@ -202,7 +202,12 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
     host.appendChild(el);
 
     const term = new XTerm({
-      fontFamily: '"JetBrains Mono", ui-monospace, monospace',
+      // 字体栈：JetBrains Mono 可选（有的机器效果好），但必须给足半角回退 + CJK 具名 fallback。
+      // 关键：`ui-monospace` 在某些 WebKit/Tauri 的 canvas 里解析不稳会被静默回退，
+      // 且单靠它 CJK 会落到不可控的系统字体 → 与 ASCII 度量错位 → 中英混排重叠/挤压（本机复现）。
+      // 显式写 Menlo(半角) + PingFang SC(CJK) 把 fallback 链锁死，跨平台分别给各系统字体。
+      fontFamily:
+        '"JetBrains Mono", Menlo, Monaco, "SF Mono", Consolas, "DejaVu Sans Mono", "PingFang SC", "Microsoft YaHei", "Noto Sans Mono CJK SC", monospace',
       fontSize: fontSizeRef.current,
       lineHeight: 1.2,
       cursorBlink: true,
@@ -240,7 +245,7 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
 
     // —— 复制/粘贴 ——
     // xterm 默认不接管剪贴板，导致 /login 这类长 code 粘不进去。这里补齐：
-    //  · Ctrl/Cmd+V：把剪贴板文本原样写进 PTY（长 OAuth code 一次性贴入）
+    //  · Ctrl/Cmd+V：图片转为临时文件路径；文本原样写进 PTY（长 OAuth code 一次性贴入）
     //  · Ctrl/Cmd+C：有选区→复制选区；无选区→放行给程序当中断信号（^C）
     //  · 右键 / Shift+Insert：直接粘贴（终端惯例）
     const writeToPty = (text: string) => {
@@ -249,14 +254,18 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       const data = text.replace(/\r\n/g, "\r").replace(/\n/g, "\r");
       invoke("term_write", { sessionId: s.sessionId, data }).catch(() => {});
     };
-    // 粘贴：优先走 Rust 后端读系统剪贴板（WebView2 焦点在 xterm 时 navigator.clipboard
-    // 常被拒），失败再退回浏览器 API 兜底。
+    // 粘贴：图片先存本地 PNG 并贴路径；否则粘贴文本。
+    // 优先走 Rust 后端读系统剪贴板（WebView2 焦点在 xterm 常被拒），失败再退回浏览器 API 兜底。
     const pasteFromClipboard = () => {
-      invoke<string>("clipboard_read")
+      invoke<string>("clipboard_read_image")
         .then(writeToPty)
-        .catch(() => {
-          navigator.clipboard.readText().then(writeToPty).catch(() => {});
-        });
+        .catch(() =>
+          invoke<string>("clipboard_read")
+            .then(writeToPty)
+            .catch(() => {
+              navigator.clipboard.readText().then(writeToPty).catch(() => {});
+            }),
+        );
     };
     // 复制：选区文本写系统剪贴板（同样优先后端）。
     const copySelection = (sel: string) => {
@@ -316,6 +325,9 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       if (text) {
         e.preventDefault();
         writeToPty(text);
+      } else if (e.clipboardData?.items.length) {
+        e.preventDefault();
+        pasteFromClipboard();
       }
     });
 
