@@ -22,6 +22,7 @@ portable-pty = "0.8"
 # 系统剪贴板读写 —— WebView2 的 navigator.clipboard 在终端焦点下常拿不到权限，
 # 改走 Rust 直读系统剪贴板，复制/粘贴 100% 可靠。纯 Rust、跨平台、体积小。
 arboard = "3"
+png = "0.18"
 
 [profile.release]
 # 体积优先：绿色 exe 要小。LTO + strip + opt-z 把 exe 压到最小。

@@ -1,0 +1,17 @@
+User-agent: *
+Allow: /
+
+# AI crawlers are welcome — this is an open-source developer tool.
+User-agent: GPTBot
+Allow: /
+
+User-agent: ClaudeBot
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Google-Extended
+Allow: /
+
+Sitemap: https://clifleet.vercel.app/sitemap.xml

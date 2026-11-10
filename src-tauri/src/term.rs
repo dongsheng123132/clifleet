@@ -6,10 +6,11 @@
 //! 子 shell 的 PATH —— 装过的 CLI 因此能直接跑。
 //!
 //! ## 环境
-//! 子进程只覆盖 `PATH`（追加兜底工具目录）与 `TERM`，**不注入任何模型/代理/工具目录变量** ——
+//! 子进程只补 `PATH`（追加兜底工具目录）与 `TERM`，**不注入模型、API Key 或代理地址** ——
 //! 完整沿用用户已配置的环境（profile 里的别名、claude/codex 自己的配置都原样生效）。
-//! 唯一例外：macOS 上 `LANG`/`LC_ALL`/`LC_CTYPE` 全缺时补一个 UTF-8 `LANG`（Finder 启动的 app
-//! 不带 locale，子 shell 落到 C locale、中文文件名显示成 `???`；Terminal.app / iTerm2 同款做法）。
+//! 为兼容 Python/OpenAI 客户端，`NO_PROXY` 中独立的 `[::1]` 项会规范为 `::1`；不改代理地址，
+//! 也不触碰其它绕过规则。另在 macOS 上 `LANG`/`LC_ALL`/`LC_CTYPE` 全缺时补一个 UTF-8 `LANG`
+//!（Finder 启动的 app 不带 locale，子 shell 落到 C locale、中文文件名显示成 `???`）。
 //! 所有起 shell 的地方都走 `apply_child_env`，别再各写一份。
 //!
 //! ## 生命周期
@@ -55,14 +56,95 @@ fn next_id() -> String {
     format!("t{}", *g)
 }
 
+/// 将 NO_PROXY 中独立的 IPv6 loopback 项改成不带方括号的形式，兼容 Python/OpenAI 的 URL 解析器。
+/// 其他绕过规则原样保留；代理地址与模型配置完全不动。
+fn normalize_no_proxy(value: &str) -> String {
+    value
+        .split(',')
+        .map(|entry| {
+            if entry.trim() == "[::1]" {
+                "::1"
+            } else {
+                entry
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(",")
+}
+
 /// 子进程环境的唯一出口：PATH 追加已知工具目录（兜底，让 claude/codex 等 CLI 可解析）、
-/// TERM，macOS 再按需补 UTF-8 locale。term_open / headless_run / 崩溃自检都走这里。
+/// TERM，规范化 NO_PROXY 的 IPv6 loopback 项，并在 macOS 按需补 UTF-8 locale。
+/// term_open / headless_run / 崩溃自检都走这里。
+///
+/// 这里同时移除从应用进程继承来的 `NO_COLOR`/`no_color`。Hermes 等 CLI 读到 `NO_COLOR`
+///（长度任意，空串也算）会强制关闭 ANSI 颜色，独立于 skin 主题的哑终端表现；我们已改为
+/// `TERM=xterm-256color`，理应还原这些 CLI 的色彩输出。
 fn apply_child_env(builder: &mut CommandBuilder) {
     builder.env("PATH", path_prefix());
     builder.env("TERM", "xterm-256color");
+    for key in ["NO_COLOR", "no_color"] {
+        if std::env::var_os(key).is_some() {
+            builder.env_remove(key);
+        }
+    }
+    for key in ["NO_PROXY", "no_proxy"] {
+        if let Ok(value) = std::env::var(key) {
+            let normalized = normalize_no_proxy(&value);
+            if normalized != value {
+                builder.env(key, normalized);
+            }
+        }
+    }
     #[cfg(target_os = "macos")]
     if let Some(lang) = mac_fallback_lang() {
         builder.env("LANG", lang);
+    }
+}
+
+#[cfg(test)]
+mod no_proxy_tests {
+    use super::normalize_no_proxy;
+
+    #[test]
+    fn normalizes_ipv6_loopback_and_preserves_other_bypass_entries() {
+        assert_eq!(
+            normalize_no_proxy("localhost,127.0.0.1,[::1],.internal.example"),
+            "localhost,127.0.0.1,::1,.internal.example"
+        );
+    }
+
+    #[test]
+    fn leaves_other_ipv6_entries_unchanged() {
+        assert_eq!(
+            normalize_no_proxy("localhost,[2001:db8::1]"),
+            "localhost,[2001:db8::1]"
+        );
+    }
+}
+
+#[cfg(test)]
+mod child_env_tests {
+    use super::apply_child_env;
+    use portable_pty::CommandBuilder;
+
+    #[test]
+    fn strips_no_color_so_clis_restore_ansi() {
+        std::env::set_var("NO_COLOR", "1");
+        std::env::set_var("no_color", "1");
+        // 清理 app 自身残留的 NO_PROXY，只观测 NO_COLOR/TERM
+        std::env::remove_var("NO_PROXY");
+        std::env::remove_var("no_proxy");
+
+        let mut cmd = CommandBuilder::new("sh");
+        apply_child_env(&mut cmd);
+
+        // TERM 应为 256 色，且继承的 NO_COLOR 已被移除
+        assert_eq!(cmd.get_env("TERM").map(|v| v.to_string_lossy().into_owned()), Some("xterm-256color".to_string()));
+        assert!(cmd.get_env("NO_COLOR").is_none());
+        assert!(cmd.get_env("no_color").is_none());
+
+        std::env::remove_var("NO_COLOR");
+        std::env::remove_var("no_color");
     }
 }
 

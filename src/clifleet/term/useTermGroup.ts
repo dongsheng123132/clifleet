@@ -7,10 +7,12 @@
  */
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, Channel } from "@tauri-apps/api/core";
+import { getCurrentWindow, UserAttentionType } from "@tauri-apps/api/window";
 import { Terminal as XTerm } from "@xterm/xterm";
 import { FitAddon } from "@xterm/addon-fit";
 import { WebglAddon } from "@xterm/addon-webgl";
 import { HOST_OS, termKeyAction } from "./keymap";
+import { normDir } from "../types";
 
 export const TERM_THEME = {
   background: "#0d0d0f",
@@ -39,6 +41,47 @@ const SOFT_RESET_SEQ =
 /** 终端字号持久化 key（localStorage）。 */
 const FONT_KEY = "clifleet.term.font";
 
+/** 标签布局持久化 key（localStorage）：{ [normDir(cwd)]: { count, active } }。 */
+const TABS_KEY = "clifleet.term.tabs.v1";
+
+/** 每个项目记住的标签数 / 激活下标。count 上限 8，防坏数据一次开一堆终端。 */
+type TabRecord = { count: number; active: number };
+
+function readTabMap(): Record<string, TabRecord> {
+  try {
+    const raw = localStorage.getItem(TABS_KEY);
+    if (!raw) return {};
+    const obj: unknown = JSON.parse(raw);
+    if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+    return obj as Record<string, TabRecord>;
+  } catch {
+    return {};
+  }
+}
+
+function writeTabMap(map: Record<string, TabRecord>) {
+  try {
+    localStorage.setItem(TABS_KEY, JSON.stringify(map));
+  } catch {
+    /* ignore：隐私模式/配额满 → 不持久化，不影响使用 */
+  }
+}
+
+/** 删除某项目的恢复记录（用户手动关掉最后一个标签时调用）。 */
+function removeTabRecord(dirKey: string) {
+  try {
+    const map = readTabMap();
+    if (!(dirKey in map)) return;
+    delete map[dirKey];
+    writeTabMap(map);
+  } catch {
+    /* ignore */
+  }
+}
+
+/** 标签栏渲染用的轻量信息（不含 xterm 实例）。unread=后台有新输出，bell=后台响铃。 */
+type TabInfo = { key: number; title: string; unread: boolean; bell: boolean };
+
 type TermSession = {
   key: number;
   title: string;
@@ -49,12 +92,14 @@ type TermSession = {
   disposed: boolean; // 已关闭标记：异步 init（setTimeout/ensurePty）回来前若已关，跳过别写已 dispose 的 xterm
   lastCols: number; // 上次发给后端 PTY 的 cols/rows —— 尺寸没真变就不再发，杜绝无谓 SIGWINCH 重绘
   lastRows: number;
+  unread: boolean; // 后台标签有新输出（未读点）
+  bell: boolean; // 后台标签响铃（红点，优先级高于 unread）
 };
 
 export type TermGroup = {
   /** 宿主容器 ref —— 调用方挂到面板的终端区 */
   hostRef: React.RefObject<HTMLDivElement | null>;
-  tabs: { key: number; title: string }[];
+  tabs: TabInfo[];
   activeKey: number | null;
   setActiveKey: (k: number) => void;
   newTerm: () => TermSession | undefined;
@@ -82,22 +127,66 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
   const seqRef = useRef(0); // 实例内序号，不共用模块全局
   const cwdRef = useRef(cwd);
   cwdRef.current = cwd;
+  // 当前 group 是否可见（onData/onBell 高频回调里要同步判断，不能等重渲染）
+  const openRef = useRef(open);
+  openRef.current = open;
+  // 恢复完成前的半成品状态不写盘；恢复完成后置 true
+  const restoredRef = useRef(false);
+  // 上一次的 open，用于识别 false→true（重新可见时清掉当前标签的未读）
+  const prevOpenRef = useRef(open);
   // 终端字号（默认 14；全局共享，落盘 localStorage，所有终端统一）
   const fontSizeRef = useRef(14);
   const [fontSize, setFontSizeState] = useState(14);
-  const [tabs, setTabs] = useState<{ key: number; title: string }[]>([]);
+  const [tabs, setTabs] = useState<TabInfo[]>([]);
   const [activeKey, setActiveKeyState] = useState<number | null>(null);
   const activeKeyRef = useRef<number | null>(null);
   activeKeyRef.current = activeKey;
 
-  // 用户主动点标签切终端：切过去 + 给焦点（被动重渲染走 setActiveKeyState 不会到这）
-  const setActiveKey = useCallback((k: number) => {
-    setActiveKeyState(k);
-    // 切到的终端立即拿焦点（用户意图明确）；下一帧等 display 切完再 focus
-    requestAnimationFrame(() => {
-      sessionsRef.current.find((x) => x.key === k)?.term.focus();
-    });
+  // 标记某会话未读 / 响铃。只在 false→true 时 setTabs：PTY 输出可能每秒几十次，
+  // 每次都 setState 会把 React 打爆。
+  const markUnread = useCallback((s: TermSession, bell = false) => {
+    let changed = false;
+    if (!s.unread) {
+      s.unread = true;
+      changed = true;
+    }
+    if (bell && !s.bell) {
+      s.bell = true;
+      changed = true;
+    }
+    if (!changed) return;
+    setTabs((t) => t.map((x) => (x.key === s.key ? { key: x.key, title: x.title, unread: s.unread, bell: s.bell } : x)));
   }, []);
+
+  // 清除一批会话的未读/响铃（点标签、group 重新可见、恢复完成后统一清）。
+  // 一次 setTabs 批量更新，避免逐个 setState。
+  const clearUnread = useCallback((keys: number[]) => {
+    if (!keys.length) return;
+    const set = new Set(keys);
+    let changed = false;
+    for (const s of sessionsRef.current) {
+      if (!set.has(s.key)) continue;
+      if (s.unread || s.bell) {
+        s.unread = false;
+        s.bell = false;
+        changed = true;
+      }
+    }
+    if (changed) setTabs((t) => t.map((x) => (set.has(x.key) ? { key: x.key, title: x.title, unread: false, bell: false } : x)));
+  }, []);
+
+  // 用户主动点标签切终端：切过去 + 给焦点（被动重渲染走 setActiveKeyState 不会到这）
+  const setActiveKey = useCallback(
+    (k: number) => {
+      setActiveKeyState(k);
+      clearUnread([k]); // 用户看到了，清未读/响铃
+      // 切到的终端立即拿焦点（用户意图明确）；下一帧等 display 切完再 focus
+      requestAnimationFrame(() => {
+        sessionsRef.current.find((x) => x.key === k)?.term.focus();
+      });
+    },
+    [clearUnread],
+  );
 
   // 统一防抖 fit：activeKey 切换 / 容器尺寸变化 / open 切换都走这一个入口，
   // 用 rAF 合并同一帧内的多次触发 —— 杜绝「三处各自 setTimeout fit 叠加重算」的抖动。
@@ -165,32 +254,39 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
   );
 
   // 起一个 PTY（懒启动）。返回 sessionId。
-  const ensurePty = useCallback(async (s: TermSession): Promise<string | null> => {
-    if (s.sessionId) return s.sessionId;
-    try {
-      const onData = new Channel<number[]>();
-      onData.onmessage = (bytes) =>
-        s.term.write(new Uint8Array(bytes), () => {
-          // 写完回调里滚到底：claude 行式输出时确保最新内容可见。
-          // xterm 默认输出跟随到底，但容器/尺寸边界情况下偶尔卡住（要 resize 才出现）——
-          // 这里兜底。若用户正往上翻历史（不在最底），不强拉，尊重阅读位置。
-          const buf = s.term.buffer.active;
-          const atBottom = buf.viewportY >= buf.baseY - 1;
-          if (atBottom) s.term.scrollToBottom();
+  const ensurePty = useCallback(
+    async (s: TermSession): Promise<string | null> => {
+      if (s.sessionId) return s.sessionId;
+      try {
+        const onData = new Channel<number[]>();
+        onData.onmessage = (bytes) => {
+          // 后台标签（group 不可见，或不是当前激活标签）有输出 → 点亮未读。
+          // markUnread 内部只在 false→true 时 setState，高频输出不会打爆 React。
+          if (!openRef.current || s.key !== activeKeyRef.current) markUnread(s);
+          s.term.write(new Uint8Array(bytes), () => {
+            // 写完回调里滚到底：claude 行式输出时确保最新内容可见。
+            // xterm 默认输出跟随到底，但容器/尺寸边界情况下偶尔卡住（要 resize 才出现）——
+            // 这里兜底。若用户正往上翻历史（不在最底），不强拉，尊重阅读位置。
+            const buf = s.term.buffer.active;
+            const atBottom = buf.viewportY >= buf.baseY - 1;
+            if (atBottom) s.term.scrollToBottom();
+          });
+        };
+        const sid = await invoke<string>("term_open", {
+          cols: s.term.cols || 80,
+          rows: s.term.rows || 24,
+          onData,
+          cwd: cwdRef.current ?? null,
         });
-      const sid = await invoke<string>("term_open", {
-        cols: s.term.cols || 80,
-        rows: s.term.rows || 24,
-        onData,
-        cwd: cwdRef.current ?? null,
-      });
-      s.sessionId = sid;
-      return sid;
-    } catch (e) {
-      s.term.writeln(`\x1b[31mFailed to open terminal: ${String(e)}\x1b[0m`);
-      return null;
-    }
-  }, []);
+        s.sessionId = sid;
+        return sid;
+      } catch (e) {
+        s.term.writeln(`\x1b[31mFailed to open terminal: ${String(e)}\x1b[0m`);
+        return null;
+      }
+    },
+    [markUnread],
+  );
 
   // 新建一个终端标签
   const newTerm = useCallback((): TermSession | undefined => {
@@ -230,7 +326,39 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       /* 不支持 WebGL（极少数环境）→ 用默认渲染，不影响功能 */
     }
 
-    const s: TermSession = { key, title: `Terminal ${key}`, term, fit, sessionId: null, el, disposed: false, lastCols: 0, lastRows: 0 };
+    const s: TermSession = {
+      key,
+      title: `Terminal ${key}`,
+      term,
+      fit,
+      sessionId: null,
+      el,
+      disposed: false,
+      lastCols: 0,
+      lastRows: 0,
+      unread: false,
+      bell: false,
+    };
+
+    // —— 终端响铃（bell）——
+    // shell / TUI 发 \x07 时：正在看的标签直接忽略（不打扰）；后台标签亮红点 + 未读，
+    // 并在窗口失焦时请求系统注意力（Dock/任务栏闪烁）。
+    term.onBell(() => {
+      const visibleActive = openRef.current && s.key === activeKeyRef.current;
+      if (visibleActive) return;
+      markUnread(s, true);
+      try {
+        const w = getCurrentWindow();
+        w.isFocused()
+          .then((f) => {
+            if (!f) w.requestUserAttention(UserAttentionType.Critical);
+          })
+          .catch(() => {});
+      } catch {
+        /* 非 Tauri 环境（测试/浏览器）→ 忽略 */
+      }
+    });
+
     term.onData((d) => {
       // —— 焦点上报泄漏防护（DECSET 1004）——
       // claude/codex 等 TUI 启用「焦点上报」(\e[?1004h) 后若崩溃/被杀，没机会发关闭序列
@@ -332,7 +460,7 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
     });
 
     sessionsRef.current.push(s);
-    setTabs((t) => [...t, { key, title: s.title }]);
+    setTabs((t) => [...t, { key, title: s.title, unread: false, bell: false }]);
     setActiveKey(key);
     setTimeout(() => {
       if (s.disposed) return; // 50ms 内已被关掉：别 fit/focus 已 dispose 的 xterm
@@ -356,7 +484,7 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       term.focus();
     }, 50);
     return s;
-  }, [bumpFontSize, ensurePty]);
+  }, [bumpFontSize, ensurePty, markUnread]);
 
   // 关闭一个终端标签
   const closeTerm = useCallback((key: number) => {
@@ -370,6 +498,9 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
     s.el.remove();
     arr.splice(idx, 1);
     setTabs((t) => t.filter((x) => x.key !== key));
+    // 用户手动关掉最后一个标签 → 删除该项目的恢复记录，下次重开是干净的一个标签。
+    // （应用退出/切项目走卸载清理，不经过这里，所以不会误删记录。）
+    if (arr.length === 0 && cwdRef.current) removeTabRecord(normDir(cwdRef.current));
     // 关的是当前激活格 → 切到邻格并给焦点；关的是后台格 → activeKey 不变
     setActiveKeyState((cur) => {
       if (cur !== key) return cur;
@@ -379,6 +510,65 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
       return nk;
     });
   }, []);
+
+  // 首次打开项目时恢复标签布局：按 localStorage 记录建 count 个标签并激活第 active 个；
+  // 无记录 → 只建 1 个（沿用旧行为）。
+  const restoreTabs = useCallback(() => {
+    const dirKey = cwdRef.current ? normDir(cwdRef.current) : null;
+    const rec = dirKey ? readTabMap()[dirKey] : undefined;
+    // 坏数据兜底：非有限数字按 1/0 处理，count 上限 8 防一次开一堆终端
+    const rawCount = rec?.count;
+    const n = typeof rawCount === "number" && Number.isFinite(rawCount) ? Math.floor(rawCount) : 1;
+    const count = Math.min(8, Math.max(1, n));
+    const rawActive = rec?.active;
+    const a = typeof rawActive === "number" && Number.isFinite(rawActive) ? Math.floor(rawActive) : 0;
+    const targetIdx = Math.min(count - 1, Math.max(0, a));
+
+    const created: TermSession[] = [];
+    for (let i = 0; i < count; i++) {
+      const s = newTerm();
+      if (s) created.push(s);
+    }
+    if (!created.length) return;
+    // 按真实会话顺序整体重建 tabs（防止 StrictMode 二次执行 / newTerm 的追加造成重复标签）
+    setTabs(sessionsRef.current.map((x) => ({ key: x.key, title: x.title, unread: false, bell: false })));
+
+    const target = created[Math.min(targetIdx, created.length - 1)] ?? created[created.length - 1];
+    setActiveKeyState(target.key);
+    activeKeyRef.current = target.key;
+    // newTerm 内部 50ms 会给「最后建的那个」聚焦；多标签时键盘会打到隐藏终端 → 200ms 后抢回目标标签
+    if (created.length > 1) {
+      setTimeout(() => {
+        if (!target.disposed) target.term.focus();
+      }, 200);
+    }
+    // 恢复后统一清一次未读：启动瞬间 shell 提示符会给一排标签点亮未读点
+    setTimeout(() => clearUnread(created.map((x) => x.key)), 1200);
+
+    restoredRef.current = true; // 恢复完成，允许写盘 effect 落记录
+  }, [newTerm, clearUnread]);
+
+  // 保存标签布局：标签数 + 激活下标（sessions 为空时不覆盖，防关光后写 0）
+  useEffect(() => {
+    if (!restoredRef.current) return;
+    if (sessionsRef.current.length === 0) return;
+    const dirKey = cwdRef.current ? normDir(cwdRef.current) : null;
+    if (!dirKey) return;
+    const idx = sessionsRef.current.findIndex((x) => x.key === activeKey);
+    if (idx < 0) return;
+    const map = readTabMap();
+    map[dirKey] = { count: sessionsRef.current.length, active: idx };
+    writeTabMap(map);
+  }, [tabs.length, activeKey]);
+
+  // group 重新可见（false→true）→ 当前激活标签用户马上就能看到，清掉它的未读/响铃。
+  useEffect(() => {
+    if (open && !prevOpenRef.current) {
+      const k = activeKeyRef.current;
+      if (k != null) clearUnread([k]);
+    }
+    prevOpenRef.current = open;
+  }, [open, clearUnread]);
 
   // 切换显示哪个终端（display 切换，不动 PTY）→ 只 fit，不抢焦点。
   // 不在这里 focus()：否则任何让 open/activeKey effect 重跑的外部重渲染都会把焦点
@@ -390,11 +580,11 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
     if (open) fitActive();
   }, [activeKey, open, fitActive]);
 
-  // 可见时：没有任何终端就新建一个；有就 fit 当前（统一防抖）。同样不抢焦点。
+  // 可见时：没有任何终端就按持久化记录恢复标签；有就 fit 当前（统一防抖）。同样不抢焦点。
   useEffect(() => {
     if (!open) return;
     if (sessionsRef.current.length === 0) {
-      newTerm();
+      restoreTabs();
     } else {
       fitActive();
     }
@@ -463,6 +653,7 @@ export function useTermGroup(opts: { open: boolean; cwd?: string }): TermGroup {
         s.term.dispose();
       }
       sessionsRef.current = [];
+      restoredRef.current = false; // StrictMode 会「挂载→清理→再挂载」，重置后下次能重新恢复
     };
   }, []);
 

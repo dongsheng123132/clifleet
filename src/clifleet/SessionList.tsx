@@ -4,7 +4,7 @@
  * 顶栏 "Projects" + 收起按钮；「Open folder…」选文件夹建项目。
  */
 import { useRef, useState } from "react";
-import { ChevronsLeft, ChevronsRight, FolderPlus, FolderOpen, Download } from "lucide-react";
+import { ArrowUp, ChevronsLeft, ChevronsRight, FolderPlus, FolderOpen, Download } from "lucide-react";
 import { invoke } from "@tauri-apps/api/core";
 import { open as openDialog } from "@tauri-apps/plugin-dialog";
 import { useWorkbench } from "./store";
@@ -12,7 +12,7 @@ import { useI18n } from "../i18n";
 
 export function SessionList() {
   const { t } = useI18n();
-  const { state, addTask, removeTask, renameTask, activate, reloadTasks } = useWorkbench();
+  const { state, addTask, removeTask, renameTask, reorderTasks, activate, reloadTasks } = useWorkbench();
 
   // 收起成窄条（44px），只留展开 + 新建项目两个图标。纯视图偏好，localStorage 记住。
   const [collapsed, setCollapsed] = useState<boolean>(
@@ -34,40 +34,36 @@ export function SessionList() {
     if (typeof dir === "string" && dir) await addTask(dir);
   };
 
-  // 从 U-King 工作台导入项目 —— importing 防重入；结果贴在列表底部就地显示，
-  // 不另建 toast 组件（守「极简」边界）。
+  // 从 U-King 与 DSH 导入项目目录；只读路径清单，不导入对话内容。
   const [importing, setImporting] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const noticeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const showNotice = (text: string) => {
     setNotice(text);
     if (noticeTimer.current) clearTimeout(noticeTimer.current);
-    noticeTimer.current = setTimeout(() => setNotice(null), 6000);
+    noticeTimer.current = setTimeout(() => setNotice(null), 8000);
   };
-  const importUking = async () => {
+  const importWorkspaces = async () => {
     if (importing) return;
     setImporting(true);
     try {
-      const r = await invoke<{ imported: number; skipped: number; source_exists: boolean }>(
-        "import_uking_tasks",
-      );
-      if (!r.source_exists) {
-        showNotice(t("No U-King workspace data found (~/.uking/tasks.json)"));
-      } else if (r.imported > 0) {
-        showNotice(
-          t("Imported {n} project(s) from U-King ({skipped} already present)", {
+      const r = await invoke<{
+        imported: number;
+        skipped: number;
+        uking_found: boolean;
+        dsh_found: boolean;
+        errors: string[];
+      }>("import_workspaces");
+      const sources = [r.uking_found ? "U-King" : null, r.dsh_found ? "DSH" : null].filter(Boolean).join(" + ");
+      const message = sources
+        ? t("Imported {n} folder(s) from {sources}; {skipped} already present", {
             n: r.imported,
+            sources,
             skipped: r.skipped,
-          }),
-        );
-        reloadTasks();
-      } else {
-        showNotice(
-          t("Nothing to import — all {skipped} U-King project(s) are already here", {
-            skipped: r.skipped,
-          }),
-        );
-      }
+          })
+        : t("No supported workspace data found");
+      showNotice(r.errors.length ? `${message}. ${r.errors.join("; ")}` : message);
+      if (r.imported > 0) reloadTasks();
     } catch (e) {
       showNotice(t("Import failed: {err}", { err: String(e) }));
     } finally {
@@ -113,9 +109,9 @@ export function SessionList() {
           <FolderPlus size={15} />
         </button>
         <button
-          onClick={importUking}
+          onClick={importWorkspaces}
           disabled={importing}
-          title={t("Import projects from the U-King workspace (~/.uking/tasks.json)")}
+          title={t("Import project folders from U-King and DSH; chat history is not imported")}
           className={
             "w-8 h-8 grid place-items-center rounded text-ink-3 hover:text-ink-0 hover:bg-white/[0.06]" +
             (importing ? " opacity-40" : "")
@@ -161,7 +157,7 @@ export function SessionList() {
             {t('Click "Open folder…" to add one.')}
           </div>
         ) : (
-          state.tasks.map((task) => {
+          state.tasks.map((task, taskIndex) => {
             const on = state.activeId === task.id;
             return (
               <div
@@ -207,6 +203,19 @@ export function SessionList() {
                     {task.name}
                   </span>
                 )}
+                {taskIndex > 0 && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      reorderTasks([task.id, ...state.tasks.filter((item) => item.id !== task.id).map((item) => item.id)]);
+                    }}
+                    className="inline-flex items-center justify-center w-5 h-5 rounded shrink-0 opacity-0 group-hover:opacity-100 text-ink-4 hover:text-accent-300 hover:bg-white/[0.08]"
+                    title={t("Move project to the top")}
+                    aria-label={t("Move project to the top")}
+                  >
+                    <ArrowUp size={12} />
+                  </button>
+                )}
                 <button
                   onClick={(e) => {
                     e.stopPropagation();
@@ -242,16 +251,16 @@ export function SessionList() {
       {/* 底部：导入 U-King + 版本号 */}
       <div className="px-2.5 py-2 border-t border-white/[0.06] shrink-0 flex items-center justify-between">
         <button
-          onClick={importUking}
+          onClick={importWorkspaces}
           disabled={importing}
-          title={t("Import projects from the U-King workspace (~/.uking/tasks.json)")}
+          title={t("Import project folders from U-King and DSH; chat history is not imported")}
           className={
             "inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded text-ink-5 hover:text-ink-2 hover:bg-white/[0.05]" +
             (importing ? " opacity-40" : "")
           }
         >
           <Download size={11} />
-          {importing ? t("Importing…") : t("Import U-King")}
+          {importing ? t("Importing…") : t("Import workspaces")}
         </button>
         <span
           className="text-[10px] font-mono text-ink-5 px-1.5 py-0.5 rounded bg-white/[0.04]"

@@ -1,0 +1,473 @@
+<!doctype html>
+<html lang="en" data-lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>CliFleet vs cmux, Conductor, Claude Squad, Emdash — which AI terminal?</title>
+<meta name="description" content="An honest side-by-side of AI coding terminals: CliFleet, cmux, Conductor, Claude Squad and Emdash. Platforms, size, orchestration, remote access, licensing — and where CliFleet loses." />
+<link rel="canonical" href="https://clifleet.vercel.app/compare" />
+<link rel="alternate" hreflang="en" href="https://clifleet.vercel.app/compare?lang=en" />
+<link rel="alternate" hreflang="zh-CN" href="https://clifleet.vercel.app/compare?lang=zh" />
+<link rel="alternate" hreflang="x-default" href="https://clifleet.vercel.app/compare" />
+<meta property="og:type" content="article" />
+<meta property="og:site_name" content="CliFleet" />
+<meta property="og:url" content="https://clifleet.vercel.app/compare" />
+<meta property="og:title" content="CliFleet vs cmux, Conductor, Claude Squad, Emdash — which AI terminal?" />
+<meta property="og:description" content="Different tools, different trade-offs. Platforms, size, orchestration, remote access and licensing, plus the places where CliFleet is the weaker choice." />
+<meta property="og:image" content="https://clifleet.vercel.app/assets/shots/cover-1200x630.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:locale:alternate" content="zh_CN" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="CliFleet vs cmux, Conductor, Claude Squad, Emdash — which AI terminal?" />
+<meta name="twitter:description" content="Different tools, different trade-offs. Platforms, size, orchestration, remote access and licensing, plus the places where CliFleet is the weaker choice." />
+<meta name="twitter:image" content="https://clifleet.vercel.app/assets/shots/cover-1200x630.png" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151517'/%3E%3Cpath d='M9 11l5 5-5 5' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 21h7' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+<link rel="stylesheet" href="/assets/app.css" />
+<style>
+  html { scroll-behavior: smooth; }
+  body { -webkit-font-smoothing: antialiased; }
+  .zh { display: none; }
+  html[data-lang="zh"] .en { display: none; }
+  html[data-lang="zh"] .zh { display: inline; }
+  .zh-block { display: none; }
+  html[data-lang="zh"] .en-block { display: none; }
+  html[data-lang="zh"] .zh-block { display: block; }
+  /* 中文标题字距更紧、字号略小，避免长句被挤断 */
+  html[data-lang="zh"] .page-h1 { letter-spacing: -0.01em; }
+  @media (min-width: 640px) {
+    html[data-lang="zh"] .page-h1 { font-size: 34px; line-height: 1.28; }
+  }
+</style>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "inLanguage": "en",
+  "url": "https://clifleet.vercel.app/compare",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Is CliFleet a terminal emulator?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Every tab is a real PTY rendered with xterm.js, so any CLI runs unchanged — no adapters or wrappers."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does CliFleet work on Windows?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Windows 10/11 is a first-class target. That is different from cmux and Conductor, which are macOS-only, and from Claude Squad, which depends on tmux."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Can I run CliFleet from a USB stick?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Yes. Data travels with the exe: no installation, no admin rights, and nothing left behind on the host machine."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Does CliFleet need Node or a local server?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It is one ~3 MB native binary reusing the system WebView, with no Node runtime and no background service."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Will CliFleet change my Claude Code / Codex config?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "No. It ships no keys, injects no model or proxy settings, and does not edit ~/.claude. CLIs inherit your environment as-is."
+      }
+    }
+  ]
+}
+</script>
+</head>
+<body class="bg-paper text-ink font-sans">
+
+<header class="sticky top-0 z-20 border-b border-line bg-paper/90 backdrop-blur">
+  <div class="mx-auto max-w-5xl px-5 h-14 flex items-center justify-between">
+    <a href="/" class="flex items-center gap-2">
+      <span class="grid place-items-center w-7 h-7 rounded-md bg-ink text-white font-mono text-[13px] font-bold">C</span>
+      <span class="font-semibold tracking-tight">CliFleet</span>
+    </a>
+    <nav class="flex items-center gap-1 sm:gap-2 text-[13px] text-muted">
+      <a class="px-2 py-1 hover:text-ink" href="/">
+        <span class="en">Home</span><span class="zh">首页</span>
+      </a>
+      <a class="px-2 py-1 text-ink font-medium" href="/compare" aria-current="page">
+        <span class="en">Compare</span><span class="zh">对比</span>
+      </a>
+      <a class="px-2 py-1 hover:text-ink" href="/#install">
+        <span class="en">Install</span><span class="zh">安装</span>
+      </a>
+      <a class="px-2 py-1 hover:text-ink" href="https://github.com/dongsheng123132/clifleet" target="_blank" rel="noreferrer">GitHub</a>
+      <button id="langBtn" class="ml-1 px-2.5 py-1 rounded-md border border-line hover:border-ink/30 text-ink font-medium">中文</button>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+
+  <!-- intro -->
+  <section class="mx-auto max-w-5xl px-5 pt-14 pb-10 sm:pt-20">
+    <p class="text-[12px] tracking-wide text-muted uppercase">
+      <span class="en">Comparison · November 2026</span>
+      <span class="zh">对比 · 2026 年 11 月</span>
+    </p>
+    <h1 class="page-h1 mt-3 text-[27px] sm:text-[40px] leading-[1.16] font-semibold tracking-tight">
+      <span class="en">Which AI coding terminal should you run?</span>
+      <span class="zh">AI 编程终端，到底该用哪一个？</span>
+    </h1>
+    <p class="mt-4 text-[15px] leading-7 text-muted max-w-2xl">
+      <span class="en">cmux, Conductor, Claude Squad, Emdash and CliFleet look similar in a screenshot and behave very differently over a full working day. This page breaks down the actual trade-offs — and it also lists the places where CliFleet is the weaker choice.</span>
+      <span class="zh">cmux、Conductor、Claude Squad、Emdash 和 CliFleet 在截图里看着差不多，真用一天完全是另一回事。下面按实际取舍拆开讲，也包括 CliFleet 输的地方。</span>
+    </p>
+  </section>
+
+  <!-- one-line verdict -->
+  <section class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-10">
+      <h2 class="text-[18px] font-semibold tracking-tight">
+        <span class="en">One-line verdict</span><span class="zh">一句话结论</span>
+      </h2>
+      <ul class="mt-5 grid gap-3 sm:grid-cols-2 text-[13px] leading-6">
+        <li class="rounded-xl border border-line p-4">
+          <span class="en"><strong class="text-ink">Windows / USB stick / one window only</strong> → CliFleet. Real terminals in tabs, nothing else.</span>
+          <span class="zh"><strong class="text-ink">Windows / U 盘 / 只要一个窗口</strong> → CliFleet。标签页里全是真终端，没有别的。</span>
+        </li>
+        <li class="rounded-xl border border-line p-4">
+          <span class="en"><strong class="text-ink">macOS native, notification ring, split panes</strong> → cmux. Built for keeping an eye on several agents at once.</span>
+          <span class="zh"><strong class="text-ink">macOS 原生、通知环、分屏</strong> → cmux。就是为了一眼盯住好几个 agent 做的。</span>
+        </li>
+        <li class="rounded-xl border border-line p-4">
+          <span class="en"><strong class="text-ink">Orchestration, diffs, PR review, cloud sandbox</strong> → Conductor or Emdash. They manage the work, not just the window.</span>
+          <span class="zh"><strong class="text-ink">编排、diff、PR review、云沙箱</strong> → Conductor 或 Emdash。它们管的是活，不只是窗口。</span>
+        </li>
+        <li class="rounded-xl border border-line p-4">
+          <span class="en"><strong class="text-ink">Terminal TUI + tmux + worktrees</strong> → Claude Squad. Stays inside the shell you already live in.</span>
+          <span class="zh"><strong class="text-ink">终端 TUI + tmux + worktree</strong> → Claude Squad。不离开你本来就在用的 shell。</span>
+        </li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- table -->
+  <section id="table" class="border-t border-line">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">Side by side</span><span class="zh">放在一起看</span>
+      </h2>
+      <p class="mt-2 text-[13px] text-muted max-w-2xl">
+        <span class="en">The rows people actually ask about. No checkmark theatre.</span>
+        <span class="zh">只列真正会问到的几行，不摆一堆对勾充数。</span>
+      </p>
+
+      <div class="mt-6 overflow-x-auto">
+        <table class="w-full min-w-[860px] text-[13px] border-collapse">
+          <thead>
+            <tr class="text-left text-muted border-b border-line">
+              <th class="py-2 pr-4 font-medium">
+                <span class="en">Dimension</span><span class="zh">维度</span>
+              </th>
+              <th class="py-2 px-3 font-semibold text-ink">CliFleet</th>
+              <th class="py-2 px-3 font-medium">cmux</th>
+              <th class="py-2 px-3 font-medium">Conductor</th>
+              <th class="py-2 px-3 font-medium">Claude Squad</th>
+              <th class="py-2 px-3 font-medium">Emdash Classic</th>
+            </tr>
+          </thead>
+          <tbody class="align-top">
+            <tr class="border-b border-line bg-white">
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">What it is</span><span class="zh">定位</span></td>
+              <td class="py-3 px-3"><span class="en">Minimal window: folders + real terminals</span><span class="zh">极简窗口：文件夹 + 真终端</span></td>
+              <td class="py-3 px-3"><span class="en">macOS terminal, built around attention management</span><span class="zh">macOS 终端，主打注意力管理</span></td>
+              <td class="py-3 px-3"><span class="en">Agent workbench with review and cloud</span><span class="zh">带 review 和云的 agent 工作台</span></td>
+              <td class="py-3 px-3"><span class="en">Terminal TUI + worktrees</span><span class="zh">终端 TUI + worktree</span></td>
+              <td class="py-3 px-3"><span class="en">Desktop app, SSH first</span><span class="zh">桌面应用，SSH 优先</span></td>
+            </tr>
+            <tr class="border-b border-line">
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">Platforms</span><span class="zh">平台</span></td>
+              <td class="py-3 px-3">Windows · macOS · Linux</td>
+              <td class="py-3 px-3">macOS</td>
+              <td class="py-3 px-3">macOS</td>
+              <td class="py-3 px-3">macOS · Linux</td>
+              <td class="py-3 px-3">Windows · macOS · Linux</td>
+            </tr>
+            <tr class="border-b border-line bg-white">
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">Size / runtime</span><span class="zh">体积 / 运行时</span></td>
+              <td class="py-3 px-3"><span class="en">~3 MB native, system WebView</span><span class="zh">约 3 MB 原生，复用系统 WebView</span></td>
+              <td class="py-3 px-3"><span class="en">Native (Ghostty)</span><span class="zh">原生（Ghostty）</span></td>
+              <td class="py-3 px-3"><span class="en">Native macOS</span><span class="zh">原生 macOS</span></td>
+              <td class="py-3 px-3">tmux + CLI</td>
+              <td class="py-3 px-3">Electron</td>
+            </tr>
+            <tr class="border-b border-line">
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">Worktrees / orchestration</span><span class="zh">worktree / 编排</span></td>
+              <td class="py-3 px-3"><span class="en">None, on purpose</span><span class="zh">不做（刻意）</span></td>
+              <td class="py-3 px-3"><span class="en">Split panes + socket API</span><span class="zh">分屏 + socket API</span></td>
+              <td class="py-3 px-3"><span class="en">Worktrees, diffs, PR review</span><span class="zh">worktree、diff、PR review</span></td>
+              <td class="py-3 px-3"><span class="en">One worktree per task</span><span class="zh">每任务一个 worktree</span></td>
+              <td class="py-3 px-3"><span class="en">Worktrees, 25+ CLIs, SSH</span><span class="zh">worktree、25+ CLI、SSH</span></td>
+            </tr>
+            <tr class="border-b border-line bg-white">
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">Remote / mobile</span><span class="zh">远程 / 手机</span></td>
+              <td class="py-3 px-3"><span class="en">None — ssh yourself inside the terminal</span><span class="zh">无（终端里自己 ssh）</span></td>
+              <td class="py-3 px-3"><span class="en">SSH + iOS (Pro)</span><span class="zh">SSH + iOS（Pro）</span></td>
+              <td class="py-3 px-3"><span class="en">Cloud sandbox + mobile</span><span class="zh">云沙箱 + 手机</span></td>
+              <td class="py-3 px-3"><span class="en">Local only</span><span class="zh">仅本地</span></td>
+              <td class="py-3 px-3"><span class="en">SSH first</span><span class="zh">SSH 优先</span></td>
+            </tr>
+            <tr class="border-b border-line">
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">License / price</span><span class="zh">许可 / 价格</span></td>
+              <td class="py-3 px-3"><span class="en">MIT · free</span><span class="zh">MIT · 免费</span></td>
+              <td class="py-3 px-3"><span class="en">GPL-3.0 open core · Pro $50/mo</span><span class="zh">GPL-3.0 开源核 · Pro $50/月</span></td>
+              <td class="py-3 px-3"><span class="en">Closed source · local free, Pro $50/mo</span><span class="zh">闭源 · 本地免费，Pro $50/月</span></td>
+              <td class="py-3 px-3"><span class="en">AGPL-3.0 · free</span><span class="zh">AGPL-3.0 · 免费</span></td>
+              <td class="py-3 px-3"><span class="en">Apache-2.0 · free</span><span class="zh">Apache-2.0 · 免费</span></td>
+            </tr>
+            <tr>
+              <td class="py-3 pr-4 font-medium text-ink"><span class="en">Touches your CLI config?</span><span class="zh">动你的 CLI 配置吗</span></td>
+              <td class="py-3 px-3"><span class="en">Never</span><span class="zh">从不</span></td>
+              <td class="py-3 px-3"><span class="en">Has its own settings</span><span class="zh">有自己的设置</span></td>
+              <td class="py-3 px-3"><span class="en">Hosts its own agent</span><span class="zh">自己托管 agent</span></td>
+              <td class="py-3 px-3">profile</td>
+              <td class="py-3 px-3"><span class="en">Own config layer</span><span class="zh">自带配置层</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <p class="mt-4 text-[12px] leading-6 text-muted">
+        <span class="en">Facts checked against each project's site and repository in November 2026. Conductor announced in 2026-11 that it is joining Meta; Crystal has stopped updating and moved to Nimbalyst; Vibe Kanban shut down its hosted service in 2026-04. This space moves fast — verify before you commit a workflow to any of them.</span>
+        <span class="zh">表内信息按 2026 年 11 月各项目官网和仓库核对。Conductor 在 2026-11 宣布并入 Meta；Crystal 已停更并转向 Nimbalyst；Vibe Kanban 在 2026-04 关闭了托管服务。这个赛道变化很快，真要把工作流押上去之前，自己再确认一遍。</span>
+      </p>
+    </div>
+  </section>
+
+  <!-- where CliFleet loses -->
+  <section id="limits" class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">Where CliFleet deliberately loses</span>
+        <span class="zh">CliFleet 刻意不做、因此落后的地方</span>
+      </h2>
+      <p class="mt-2 text-[13px] text-muted max-w-2xl">
+        <span class="en">Four limits worth knowing before you download it.</span>
+        <span class="zh">下载之前，这四条最好先知道。</span>
+      </p>
+      <div class="mt-8 grid gap-5 sm:grid-cols-2">
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">01</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">No orchestration</span><span class="zh">没有编排</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">No worktrees, no task queue, no automatic hand-off between agents. It gives you tabs, not a team that divides the work for you.</span>
+            <span class="zh">不做 worktree，没有任务队列，也不会在 agent 之间自动交接。它给你一排标签页，不是一个替你分工的团队。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">02</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">No cloud, mobile, browser or diff panel</span>
+            <span class="zh">没有云、手机端、浏览器和 diff 面板</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">There is no remote sandbox and no phone app. No built-in browser either, and no diff review panel — you review with git, in the terminal, like before.</span>
+            <span class="zh">没有云沙箱，没有手机端，也没有内置浏览器和 diff review 面板——review 还是回到终端里用 git 做。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">03</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">macOS build is not notarized</span><span class="zh">macOS 包没有公证</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">The current macOS build is ad-hoc signed and not notarized. On first launch you have to approve it yourself in System Settings.</span>
+            <span class="zh">macOS 包目前是 ad-hoc 签名、没做公证，第一次打开得自己去「系统设置 → 隐私与安全性」点「仍要打开」。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line p-5">
+          <div class="font-mono text-[12px] text-muted">04</div>
+          <h3 class="mt-2 text-[15px] font-semibold">
+            <span class="en">Still 0.x, with a small user base</span><span class="zh">版本还是 0.x，用户也少</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Fewer users means far fewer eyes on bugs than cmux or Conductor have. If you need a battle-tested tool today, pick one of those.</span>
+            <span class="zh">用户少，帮你发现 bug 的眼睛就远不如 cmux 或 Conductor 多。今天就要一个被大量使用磨过的工具，选它们更稳。</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- FAQ -->
+  <section id="faq" class="border-t border-line">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <h2 class="text-[22px] font-semibold tracking-tight">
+        <span class="en">FAQ</span><span class="zh">常见问题</span>
+      </h2>
+      <div class="mt-6 space-y-3">
+        <div class="rounded-xl border border-line bg-white p-5">
+          <h3 class="text-[14px] font-semibold">
+            <span class="en">Is CliFleet a terminal emulator?</span>
+            <span class="zh">CliFleet 是终端模拟器吗？</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Yes. Every tab is a real PTY rendered with xterm.js, so any CLI runs unchanged — no adapters, no wrappers.</span>
+            <span class="zh">是。每个标签背后都是一个真实 PTY，用 xterm.js 渲染，任何 CLI 都能原样跑，不需要适配或包装。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-5">
+          <h3 class="text-[14px] font-semibold">
+            <span class="en">Does it work on Windows?</span>
+            <span class="zh">Windows 能用吗？</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Yes. Windows 10/11 is a first-class target. That is different from cmux and Conductor, which are macOS-only, and from Claude Squad, which depends on tmux.</span>
+            <span class="zh">能。Windows 10/11 是一等目标，这点和 cmux、Conductor（只支持 macOS）以及依赖 tmux 的 Claude Squad 不一样。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-5">
+          <h3 class="text-[14px] font-semibold">
+            <span class="en">Can I run it from a USB stick?</span>
+            <span class="zh">能从 U 盘直接跑吗？</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">Yes. Your data travels with the exe: no install, no admin rights, and nothing left behind on the host machine.</span>
+            <span class="zh">可以。数据跟着 exe 走，不用安装、不要管理员权限，拔掉盘之后主机上也不留东西。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-5">
+          <h3 class="text-[14px] font-semibold">
+            <span class="en">Do I need Node or a local server?</span>
+            <span class="zh">需要 Node 或本地服务吗？</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">No. It is one ~3 MB native binary that reuses the system WebView. No Node runtime, no background service, no port to open.</span>
+            <span class="zh">不需要。一个约 3 MB 的原生程序，复用系统 WebView；没有 Node 运行时，没有后台服务，也不用开端口。</span>
+          </p>
+        </div>
+        <div class="rounded-xl border border-line bg-white p-5">
+          <h3 class="text-[14px] font-semibold">
+            <span class="en">Will it change my Claude Code / Codex config?</span>
+            <span class="zh">会改我的 Claude Code / Codex 配置吗？</span>
+          </h3>
+          <p class="mt-2 text-[13px] leading-6 text-muted">
+            <span class="en">No. It ships no keys, injects no model or proxy settings, and does not touch ~/.claude. The CLI inherits your environment exactly as it is.</span>
+            <span class="zh">不会。它不带 Key、不注入模型或代理设置，也不改 ~/.claude；CLI 拿到的就是你原来的环境。</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA -->
+  <section class="border-t border-line bg-white">
+    <div class="mx-auto max-w-5xl px-5 py-14">
+      <div class="rounded-xl border border-line bg-paper p-6 sm:p-8">
+        <h2 class="text-[20px] font-semibold tracking-tight">
+          <span class="en">Try CliFleet — 3 MB, one command</span>
+          <span class="zh">试试 CliFleet —— 3 MB，一条命令</span>
+        </h2>
+        <p class="mt-2 text-[13px] leading-6 text-muted max-w-xl">
+          <span class="en">Portable, native, MIT. Windows / macOS / Linux. If it is not for you, uninstalling is just deleting one file.</span>
+          <span class="zh">便携、原生、MIT，Windows / macOS / Linux 都能跑。不合适的话，卸载就是删掉一个文件。</span>
+        </p>
+        <div class="mt-5 flex flex-wrap items-center gap-3">
+          <a href="/#install"
+             class="inline-flex items-center gap-2 h-10 px-5 rounded-lg bg-ink text-white text-[14px] font-medium hover:bg-black">
+            <span class="en">Install</span><span class="zh">安装</span>
+            <span class="text-accent">→</span>
+          </a>
+          <a href="https://github.com/dongsheng123132/clifleet" target="_blank" rel="noreferrer"
+             class="inline-flex items-center h-10 px-4 rounded-lg border border-line text-[14px] hover:border-ink/30">
+            <span class="en">View source</span><span class="zh">看源码</span>
+          </a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer class="border-t border-line">
+  <div class="mx-auto max-w-5xl px-5 py-10 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between text-[12px] text-muted">
+    <div>
+      <div class="font-semibold text-ink">CliFleet</div>
+      <div class="mt-1">
+        <span class="en">An independent open-source project. Not affiliated with Anthropic or OpenAI.</span>
+        <span class="zh">独立开源项目，与 Anthropic / OpenAI 无关。</span>
+      </div>
+    </div>
+    <div class="flex flex-wrap items-center gap-4">
+      <a class="hover:text-ink" href="/">
+        <span class="en">Home</span><span class="zh">首页</span>
+      </a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet">GitHub</a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet/pulls">
+        <span class="en">Pull requests</span><span class="zh">提交 PR</span>
+      </a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet/blob/main/LICENSE">MIT</a>
+      <a class="hover:text-ink" href="https://github.com/dongsheng123132/clifleet/blob/main/docs/signing.md">
+        <span class="en">Signing</span><span class="zh">签名说明</span>
+      </a>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var KEY = "clifleet.site.lang";
+  var html = document.documentElement;
+  var btn = document.getElementById("langBtn");
+
+  function apply(lang) {
+    html.setAttribute("data-lang", lang);
+    html.setAttribute("lang", lang === "zh" ? "zh-CN" : "en");
+    btn.textContent = lang === "zh" ? "EN" : "中文";
+    var t = {
+      en: "CliFleet vs cmux, Conductor, Claude Squad, Emdash — which AI terminal?",
+      zh: "CliFleet vs cmux / Conductor / Claude Squad / Emdash —— AI 编程终端该选哪个？"
+    };
+    document.title = t[lang];
+    document.querySelector('meta[name="description"]').setAttribute("content",
+      lang === "zh"
+        ? "AI 编程终端横向对比：CliFleet、cmux、Conductor、Claude Squad、Emdash。平台、体积、编排、远程访问、许可与价格，也写明 CliFleet 落后的地方。"
+        : "An honest side-by-side of AI coding terminals: CliFleet, cmux, Conductor, Claude Squad and Emdash. Platforms, size, orchestration, remote access, licensing — and where CliFleet loses."
+    );
+  }
+
+  var saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) {}
+  // ?lang=en / ?lang=zh 优先（方便分享定向语言版本）
+  var forced = null;
+  try {
+    var q = new URLSearchParams(location.search).get("lang");
+    if (q === "zh" || q === "en") forced = q;
+  } catch (e) {}
+  var initial = forced
+    ? forced
+    : saved === "zh" || saved === "en"
+      ? saved
+      : (navigator.language || "en").toLowerCase().indexOf("zh") === 0 ? "zh" : "en";
+  apply(initial);
+
+  btn.addEventListener("click", function () {
+    var next = html.getAttribute("data-lang") === "zh" ? "en" : "zh";
+    try { localStorage.setItem(KEY, next); } catch (e) {}
+    apply(next);
+  });
+})();
+</script>
+</body>
+</html>

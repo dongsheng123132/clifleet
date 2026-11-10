@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://clifleet.vercel.app/</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://clifleet.vercel.app/?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://clifleet.vercel.app/?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://clifleet.vercel.app/"/>
+  </url>
+  <url>
+    <loc>https://clifleet.vercel.app/compare</loc>
+    <lastmod>2026-11-09</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="en" href="https://clifleet.vercel.app/compare?lang=en"/>
+    <xhtml:link rel="alternate" hreflang="zh-CN" href="https://clifleet.vercel.app/compare?lang=zh"/>
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://clifleet.vercel.app/compare"/>
+  </url>
+</urlset>

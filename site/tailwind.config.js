@@ -1,8 +1,8 @@
-/** 官网构建配置：只扫单页 index.html，产出 assets/app.css。
+/** 官网构建配置：扫 index.html 与 compare.html，产出 assets/app.css。
  *  构建命令（在仓库根目录跑）：pnpm exec tailwindcss -c site/tailwind.config.js -i site/src.css -o site/assets/app.css --minify
  */
 module.exports = {
-  content: ["./site/index.html"],
+  content: ["./site/index.html", "./site/compare.html"],
   theme: {
     extend: {
       colors: {

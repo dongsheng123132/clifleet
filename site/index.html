@@ -5,10 +5,40 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>CliFleet — one folder, several AI CLIs, all alive</title>
 <meta name="description" content="CliFleet is a ~3 MB native workbench for running several AI coding CLIs side by side. One folder, many agents. No Node runtime, no localhost server, never touches your CLI config." />
+<link rel="canonical" href="https://clifleet.vercel.app/" />
+<link rel="alternate" hreflang="en" href="https://clifleet.vercel.app/?lang=en" />
+<link rel="alternate" hreflang="zh-CN" href="https://clifleet.vercel.app/?lang=zh" />
+<link rel="alternate" hreflang="x-default" href="https://clifleet.vercel.app/" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content="CliFleet" />
+<meta property="og:url" content="https://clifleet.vercel.app/" />
 <meta property="og:title" content="CliFleet — one folder, several AI CLIs, all alive" />
 <meta property="og:description" content="A ~3 MB native window for Claude Code, Codex, opencode and any other CLI. Windows / macOS / Linux. MIT." />
-<meta property="og:image" content="/assets/shots/cover-1200x630.png" />
-<meta property="og:type" content="website" />
+<meta property="og:image" content="https://clifleet.vercel.app/assets/shots/cover-1200x630.png" />
+<meta property="og:image:width" content="1200" />
+<meta property="og:image:height" content="630" />
+<meta property="og:locale" content="en_US" />
+<meta property="og:locale:alternate" content="zh_CN" />
+<meta name="twitter:card" content="summary_large_image" />
+<meta name="twitter:title" content="CliFleet — one folder, several AI CLIs, all alive" />
+<meta name="twitter:description" content="A ~3 MB native window for Claude Code, Codex, opencode and any other CLI. Windows / macOS / Linux. MIT." />
+<meta name="twitter:image" content="https://clifleet.vercel.app/assets/shots/cover-1200x630.png" />
+<script type="application/ld+json">
+{ "@context": "https://schema.org", "@type": "SoftwareApplication",
+  "name": "CliFleet", "applicationCategory": "DeveloperApplication",
+  "operatingSystem": "Windows 10+, macOS 12+, Linux",
+  "description": "A ~3 MB native, portable workbench for running several AI coding CLIs side by side: one folder per project, one tab per agent, no Node runtime, no localhost server, and it never touches your CLI config.",
+  "url": "https://clifleet.vercel.app/",
+  "downloadUrl": "https://github.com/dongsheng123132/clifleet/releases/latest",
+  "codeRepository": "https://github.com/dongsheng123132/clifleet",
+  "softwareVersion": "0.6.1",
+  "license": "https://opensource.org/licenses/MIT",
+  "isAccessibleForFree": true,
+  "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
+  "screenshot": "https://clifleet.vercel.app/assets/shots/hero-en.png",
+  "author": { "@type": "Person", "name": "He Fangsheng", "url": "https://www.hequbing.com" },
+  "sameAs": ["https://github.com/dongsheng123132/clifleet", "https://u-claw.org.cn/clifleet/"] }
+</script>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23151517'/%3E%3Cpath d='M9 11l5 5-5 5' stroke='%23fff' stroke-width='2.4' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3Cpath d='M17 21h7' stroke='%23fff' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
 <link rel="stylesheet" href="/assets/app.css" />
 <style>
@@ -45,7 +75,7 @@
       <a class="px-2 py-1 hover:text-ink" href="#shots">
         <span class="en">Screenshots</span><span class="zh">截图</span>
       </a>
-      <a class="px-2 py-1 hover:text-ink" href="#compare">
+      <a class="px-2 py-1 hover:text-ink" href="/compare">
         <span class="en">Compare</span><span class="zh">对比</span>
       </a>
       <a class="px-2 py-1 hover:text-ink" href="#install">
@@ -269,6 +299,10 @@
         <span class="en">If you want built-in orchestration, use CliDeck or Conductor — they do more. CliFleet only gives you the window, and stays out of the way.</span>
         <span class="zh">想要内置编排，用 CliDeck 或 Conductor，它们做得更多。CliFleet 只给你一个窗口，然后消失。</span>
       </p>
+      <p class="mt-2 text-[13px]"><a class="text-ink underline underline-offset-4 hover:text-muted" href="/compare">
+        <span class="en">Full comparison: CliFleet vs cmux, Conductor, Claude Squad, Emdash →</span>
+        <span class="zh">完整对比：CliFleet vs cmux / Conductor / Claude Squad / Emdash →</span>
+      </a></p>
     </div>
   </section>
 

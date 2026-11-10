@@ -138,57 +138,118 @@ fn norm_dir_key(dir: &str) -> String {
 pub struct ImportSummary {
     pub imported: usize,
     pub skipped: usize,
-    pub source_exists: bool,
+    pub uking_found: bool,
+    pub dsh_found: bool,
+    pub errors: Vec<String>,
 }
 
-/// 从 U-King 工作台导入项目（`~/.uking/tasks.json` → CliFleet 项目列表）。
-///
-/// 只增不删：已按目录去重存在的任务计入 skipped，绝不改动已有条目。
-/// U-King 的 `order` 是它自己的排序权重，直接沿用会打乱 CliFleet 的排序手感，
-/// 所以导入时统一置 0（0 = 未排/置顶），`last_opened_at` 保留源值便于确定顺序。
-#[tauri::command]
-pub fn import_uking_tasks() -> Result<ImportSummary, String> {
-    let home = std::env::var("USERPROFILE")
+fn home_dir() -> PathBuf {
+    std::env::var("USERPROFILE")
         .or_else(|_| std::env::var("HOME"))
-        .unwrap_or_else(|_| ".".into());
-    let src = Path::new(&home).join(".uking").join("tasks.json");
-    let text = match std::fs::read_to_string(&src) {
-        Ok(t) => t,
-        Err(_) => {
-            return Ok(ImportSummary {
-                imported: 0,
-                skipped: 0,
-                source_exists: false,
-            });
-        }
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| PathBuf::from("."))
+}
+
+/// Read DSH's workspace registry, following its ordered `global.workspaceIds` list.
+/// Only reads workspace paths; session rows/messages are never opened.
+fn dsh_workspace_paths(value: &serde_json::Value) -> Vec<(String, String)> {
+    let Some(ids) = value
+        .pointer("/global/workspaceIds")
+        .and_then(|v| v.as_array())
+    else {
+        return Vec::new();
     };
-    let source: TasksFile =
-        serde_json::from_str(&text).map_err(|e| format!("解析 U-King tasks.json 失败: {e}"))?;
+    let Some(workspaces) = value
+        .pointer("/tables/workspaces")
+        .and_then(|v| v.as_object())
+    else {
+        return Vec::new();
+    };
+
+    ids.iter()
+        .filter_map(|id| {
+            let id = id.as_str()?;
+            let row = workspaces.get(id)?;
+            let path = row.get("path")?.as_str()?.trim();
+            if path.is_empty() || !Path::new(path).is_dir() {
+                return None;
+            }
+            let name = row
+                .get("title")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.trim().is_empty())
+                .unwrap_or_else(|| {
+                    Path::new(path)
+                        .file_name()
+                        .and_then(|s| s.to_str())
+                        .unwrap_or(path)
+                });
+            Some((name.to_string(), path.to_string()))
+        })
+        .collect()
+}
+
+/// Import project directories from U-King and DSH. External data is read-only;
+/// existing CliFleet entries are preserved and duplicate paths are skipped.
+#[tauri::command]
+pub fn import_workspaces() -> Result<ImportSummary, String> {
+    let home = home_dir();
+    let uking_path = home.join(".uking").join("tasks.json");
+    let dsh_path = home.join(".dsh").join("storages").join("workspace.json");
+    let mut errors = Vec::new();
+    let mut candidates: Vec<(String, String, String)> = Vec::new();
+    let uking_found = uking_path.is_file();
+    let dsh_found = dsh_path.is_file();
+
+    if uking_found {
+        match std::fs::read_to_string(&uking_path)
+            .map_err(|e| e.to_string())
+            .and_then(|text| serde_json::from_str::<TasksFile>(&text).map_err(|e| e.to_string()))
+        {
+            Ok(source) => candidates.extend(source.tasks.into_iter().filter_map(|t| {
+                (Path::new(&t.dir).is_dir() && !t.id.trim().is_empty())
+                    .then_some((t.id, t.name, t.dir))
+            })),
+            Err(e) => errors.push(format!("U-King: {e}")),
+        }
+    }
+
+    if dsh_found {
+        match std::fs::read_to_string(&dsh_path)
+            .map_err(|e| e.to_string())
+            .and_then(|text| {
+                serde_json::from_str::<serde_json::Value>(&text).map_err(|e| e.to_string())
+            }) {
+            Ok(value) => {
+                candidates.extend(dsh_workspace_paths(&value).into_iter().map(|(name, dir)| {
+                    let id = format!("dsh-import:{}", norm_dir_key(&dir));
+                    (id, name, dir)
+                }))
+            }
+            Err(e) => errors.push(format!("DSH: {e}")),
+        }
+    }
 
     let mut f = read_file();
     let mut existing: std::collections::HashSet<String> =
         f.tasks.iter().map(|t| norm_dir_key(&t.dir)).collect();
-
     let mut imported = 0usize;
     let mut skipped = 0usize;
-    for mut t in source.tasks {
-        if t.dir.trim().is_empty() || t.id.trim().is_empty() {
-            continue; // 空白条目不计入 skipped
-        }
-        if existing.contains(&norm_dir_key(&t.dir)) {
+    for (id, name, dir) in candidates {
+        let key = norm_dir_key(&dir);
+        if !existing.insert(key) {
             skipped += 1;
             continue;
         }
         let now = now_ms();
-        if t.created_at == 0 {
-            t.created_at = now;
-        }
-        if t.last_opened_at == 0 {
-            t.last_opened_at = now;
-        }
-        t.order = 0;
-        existing.insert(norm_dir_key(&t.dir));
-        f.tasks.push(t);
+        f.tasks.push(Task {
+            id,
+            name,
+            dir,
+            order: 0,
+            last_opened_at: now,
+            created_at: now,
+        });
         imported += 1;
     }
 
@@ -199,6 +260,34 @@ pub fn import_uking_tasks() -> Result<ImportSummary, String> {
     Ok(ImportSummary {
         imported,
         skipped,
-        source_exists: true,
+        uking_found,
+        dsh_found,
+        errors,
     })
+}
+
+#[cfg(test)]
+mod import_tests {
+    use super::dsh_workspace_paths;
+
+    #[test]
+    fn dsh_parser_uses_ordered_registry_and_ignores_session_data() {
+        let dir = std::env::temp_dir();
+        let path = dir.to_string_lossy();
+        let value = serde_json::json!({
+            "global": { "workspaceIds": ["b", "a", "missing"] },
+            "tables": { "workspaces": {
+                "a": { "path": "/path/that/does/not/exist", "title": "stale" },
+                "b": { "path": path, "title": "temporary" }
+            } },
+            "sessionMessages": [{ "text": "must not be considered a path" }]
+        });
+        let paths = dsh_workspace_paths(&value);
+        assert_eq!(paths, vec![("temporary".to_string(), path.to_string())]);
+    }
+
+    #[test]
+    fn dsh_parser_returns_empty_for_unknown_schema() {
+        assert!(dsh_workspace_paths(&serde_json::json!({ "unexpected": true })).is_empty());
+    }
 }

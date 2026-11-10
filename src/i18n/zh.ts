@@ -20,23 +20,23 @@ export const ZH: Record<string, string> = {
   "Double-click to rename": "双击可重命名",
   "Close project (ends its terminal sessions; the folder on disk is untouched)":
     "关闭项目（会结束其中的终端会话；磁盘上的文件夹不动）",
+  "Move project to the top": "移到最上面",
   "CliFleet version": "CliFleet 版本",
-  "Import U-King": "导入 U-King",
+  "Import workspaces": "导入工作区",
   "Importing…": "导入中…",
-  "Import projects from the U-King workspace (~/.uking/tasks.json)":
-    "从 U-King 工作台导入项目（~/.uking/tasks.json）",
-  "No U-King workspace data found (~/.uking/tasks.json)":
-    "未找到 U-King 工作台数据（~/.uking/tasks.json）",
-  "Imported {n} project(s) from U-King ({skipped} already present)":
-    "已从 U-King 导入 {n} 个项目（{skipped} 个已存在）",
-  "Nothing to import — all {skipped} U-King project(s) are already here":
-    "没有可导入的 —— {skipped} 个 U-King 项目都已在这里",
+  "Import project folders from U-King and DSH; chat history is not imported":
+    "从 U-King 和 DSH 导入项目文件夹；不导入对话记录",
+  "Imported {n} folder(s) from {sources}; {skipped} already present":
+    "已从 {sources} 导入 {n} 个文件夹；{skipped} 个已存在",
+  "No supported workspace data found": "未找到可导入的 U-King 或 DSH 工作区数据",
   "Import failed: {err}": "导入失败: {err}",
 
   // —— 终端面板（TermPanel）——
   "Click again to confirm close": "再点一次确认关闭",
   "Close this terminal": "关闭此终端",
   "New terminal tab": "新建终端标签",
+  "New output in this tab": "此标签有新输出",
+  "This tab is waiting for you (terminal bell)": "此标签在等你（终端响铃）",
   "Decrease font size (Ctrl -)": "减小字体（Ctrl -）",
   "Increase font size (Ctrl +)": "增大字体（Ctrl +）",
   "Current font size": "当前字号",

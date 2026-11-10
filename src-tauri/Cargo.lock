@@ -352,6 +352,7 @@ name = "clifleet"
 version = "0.6.1"
 dependencies = [
  "arboard",
+ "png 0.18.1",
  "portable-pty",
  "serde",
  "serde_json",

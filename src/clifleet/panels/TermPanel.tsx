@@ -10,6 +10,7 @@ import { Plus, X, RotateCcw } from "lucide-react";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useI18n } from "../../i18n";
 import { useTermGroup } from "../term/useTermGroup";
+import { appKeyAction, HOST_OS } from "../term/keymap";
 import "@xterm/xterm/css/xterm.css";
 
 /** 把拖入的路径列表拼成命令行片段：含空格/特殊字符的路径加双引号，多个空格分隔，末尾留一个空格。 */
@@ -102,6 +103,46 @@ export function TermPanel({ cwd, active }: { cwd: string; active: boolean }) {
     };
   }, [active, hostRef, pasteToActive]);
 
+  // —— 应用级标签快捷键（window 捕获阶段）——
+  // 只在 active 时生效；命中 appKeyAction 才 preventDefault+stopPropagation，
+  // 其余按键（Ctrl+T / Ctrl+W / Cmd+C/V / Ctrl+Shift+C …）原样进 PTY。
+  // 注意：xterm 的输入焦点落在 .xterm-helper-textarea（也是 TEXTAREA），必须放行，
+  // 否则终端聚焦时快捷键全失效；跳过它是为了避开行内表单输入框，不抢用户的键。
+  useEffect(() => {
+    if (!active) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      const tgt = e.target as HTMLElement | null;
+      const inXterm = !!tgt && typeof tgt.closest === "function" && !!tgt.closest(".xterm");
+      if (tgt && !inXterm) {
+        const tag = tgt.tagName;
+        if (tag === "INPUT" || tag === "TEXTAREA" || tgt.isContentEditable) return; // 行内表单里别抢键
+      }
+      const action = appKeyAction(e, HOST_OS);
+      if (!action) return;
+      e.preventDefault();
+      e.stopPropagation();
+      if (action === "newTab") {
+        newTerm();
+      } else if (action === "closeTab") {
+        if (activeKey != null) closeTerm(activeKey);
+      } else if (action === "nextTab" || action === "prevTab") {
+        if (!tabs.length) return;
+        const idx = tabs.findIndex((x) => x.key === activeKey);
+        const base = idx < 0 ? 0 : idx;
+        const step = action === "nextTab" ? 1 : -1;
+        const next = tabs[(base + step + tabs.length) % tabs.length];
+        if (next) setActiveKey(next.key);
+      } else {
+        // tab1..tab9 → 按标签顺序跳
+        const n = parseInt(action.slice(3), 10);
+        const target = tabs[n - 1];
+        if (target) setActiveKey(target.key);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
+  }, [active, tabs, activeKey, newTerm, closeTerm, setActiveKey]);
+
   // 关闭防误触：第一次点 × 进入「待确认」（按钮变红 ✓），2 秒内再点一次才真关闭，
   // 否则自动撤销。避免手滑把跑着 claude code 的终端一下点没了。
   const [confirmKey, setConfirmKey] = useState<number | null>(null);
@@ -157,15 +198,24 @@ export function TermPanel({ cwd, active }: { cwd: string; active: boolean }) {
         <div className="flex items-center gap-1 min-w-0 shrink overflow-x-auto">
           {tabs.map((tab) => {
             const pending = confirmKey === tab.key;
+            const isActive = tab.key === activeKey;
             return (
               <div
                 key={tab.key}
                 onClick={() => setActiveKey(tab.key)}
+                title={tab.bell ? t("This tab is waiting for you (terminal bell)") : tab.unread ? t("New output in this tab") : undefined}
                 className={
                   "group flex items-center gap-1.5 h-6 pl-2.5 pr-1 rounded cursor-pointer text-[12px] shrink-0 " +
-                  (tab.key === activeKey ? "bg-accent/[0.12] text-ink-0" : "text-ink-3 hover:bg-white/[0.04]")
+                  (isActive
+                    ? "bg-accent/[0.12] text-ink-0"
+                    : // 未读的后台标签给一圈克制的描边（不发光、不渐变）
+                      "text-ink-3 hover:bg-white/[0.04]" + (tab.unread ? " ring-1 ring-inset ring-accent/30" : ""))
                 }
               >
+                {/* 响铃优先显示红点，其次未读显示 accent 点 */}
+                {(tab.bell || tab.unread) && (
+                  <span className={"w-1.5 h-1.5 rounded-full shrink-0 " + (tab.bell ? "bg-danger-500" : "bg-accent")} />
+                )}
                 <span className="whitespace-nowrap">{tab.title}</span>
                 <button
                   onClick={(e) => {
