@@ -113,13 +113,13 @@ def sanity_check(files: list[pathlib.Path]) -> list[str]:
 def upload() -> None:
     run(["ssh", HOST, f"rm -rf {REMOTE_TMP} && mkdir -p {REMOTE_TMP}"])
     run(["rsync", "-az", "--delete", f"{STAGE}/", f"{HOST}:{REMOTE_TMP}/"])
-    # 站点目录里还有安装包（download/clifleet 走别的规则），这里只覆盖页面与资源：
-    # 用 rsync 到站点目录时排除 SHA256SUMS（由发版流程维护）。
+    # SHA256SUMS.txt 必须跟着发版一起更新：安装脚本会拿它校验刚下下来的包，
+    # 留着上一版的校验和 = 新包校验不过（曾经因为 --exclude 它而踩过）。
     run(
         [
             "ssh",
             HOST,
-            f"sudo rsync -a --exclude 'SHA256SUMS.txt' {REMOTE_TMP}/ {REMOTE_WWW}/ && "
+            f"sudo rsync -a {REMOTE_TMP}/ {REMOTE_WWW}/ && "
             f"sudo chown -R root:root {REMOTE_WWW} && sudo nginx -t",
         ]
     )
@@ -164,19 +164,28 @@ ASSETS = [
 
 
 def sync_binaries(version: str) -> None:
-    """让远端自己从 GitHub 拉安装包（本机不必先下载几百 MB），已存在则跳过。"""
+    """让远端自己从 GitHub 拉安装包（本机不必先下载几百 MB），已存在则跳过。
+
+    国内机直连 GitHub Release 会卡（实测 AppImage 80MB 停在 12MB 十几分钟不动），
+    所以按「加速镜像 → 直连」的顺序试；任一成功即可。
+    """
     tag = f"v{version}"
     names = " ".join(a.format(v=tag) for a in ASSETS) + " SHA256SUMS.txt"
     script = f"""
-set -e
+set -u
 D=/var/www/dl-root/download/clifleet
 sudo -n mkdir -p "$D"
+GH=https://github.com/dongsheng123132/clifleet/releases/download/{tag}
 for f in {names}; do
   if sudo -n test -s "$D/$f"; then echo "skip $f"; continue; fi
-  if curl -fsSL --max-time 900 -o /tmp/$f "https://github.com/dongsheng123132/clifleet/releases/download/{tag}/$f"; then
-    sudo -n mv /tmp/$f "$D/" && echo "ok $f"
+  ok=0
+  for base in "https://gh-proxy.com/$GH" "https://ghfast.top/$GH" "$GH"; do
+    if curl -fsSL --max-time 300 --retry 1 -o "/tmp/$f" "$base/$f"; then ok=1; break; fi
+  done
+  if [ "$ok" = 1 ] && [ -s "/tmp/$f" ]; then
+    sudo -n mv "/tmp/$f" "$D/$f" && echo "ok $f"
   else
-    echo "FAIL $f"
+    echo "FAIL $f" >&2
   fi
 done
 sudo -n chown -R root:root "$D"
