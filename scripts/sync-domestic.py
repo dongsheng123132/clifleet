@@ -125,12 +125,75 @@ def upload() -> None:
     )
 
 
+def write_version_and_checksums(version: str) -> None:
+    """写 version.json（安装脚本第一优先读它决定装哪个版本）+ 拉该版本的 SHA256SUMS。
+
+    顺序很重要：version.json 是安装脚本的版本来源，它比安装包先上线的话，
+    用户会在包还没同步完时被指到一个还不存在的 tag —— 所以发布顺序是
+    「先传二进制 → 再传 version.json → 最后传页面」。
+    """
+    tag = f"v{version}"
+    vj = {
+        "version": tag,
+        "tag": tag,
+        "repo": "https://github.com/dongsheng123132/clifleet",
+        "updated": subprocess.run(
+            ["date", "+%Y-%m-%dT%H:%M:%S%z"], capture_output=True, text=True, check=True
+        ).stdout.strip(),
+    }
+    (STAGE / "version.json").write_text(json.dumps(vj, ensure_ascii=False, indent=2), encoding="utf-8")
+
+    # SHA256SUMS 从 GitHub Release 取（CI 产物），拿不到不算失败——安装脚本会跳过校验
+    url = f"https://github.com/dongsheng123132/clifleet/releases/download/{tag}/SHA256SUMS.txt"
+    try:
+        data = run(["curl", "-fsSL", "--max-time", "60", url]).stdout
+        (STAGE / "SHA256SUMS.txt").write_text(data, encoding="utf-8")
+        print(f"checksums: 取到 {tag} 的 SHA256SUMS.txt（{len(data.splitlines())} 行）")
+    except subprocess.CalledProcessError:
+        print(f"警告：{tag} 的 SHA256SUMS.txt 取不到（安装脚本会跳过校验）", file=sys.stderr)
+
+
+ASSETS = [
+    "CliFleet-{v}-windows-x64-setup.exe",
+    "CliFleet-{v}-windows-x64-portable.zip",
+    "CliFleet-{v}-macos-arm64.dmg",
+    "CliFleet-{v}-macos-x86_64.dmg",
+    "CliFleet-{v}-linux-x86_64.AppImage",
+    "CliFleet-{v}-linux-x86_64.deb",
+]
+
+
+def sync_binaries(version: str) -> None:
+    """让远端自己从 GitHub 拉安装包（本机不必先下载几百 MB），已存在则跳过。"""
+    tag = f"v{version}"
+    names = " ".join(a.format(v=tag) for a in ASSETS) + " SHA256SUMS.txt"
+    script = f"""
+set -e
+D=/var/www/dl-root/download/clifleet
+sudo -n mkdir -p "$D"
+for f in {names}; do
+  if sudo -n test -s "$D/$f"; then echo "skip $f"; continue; fi
+  if curl -fsSL --max-time 900 -o /tmp/$f "https://github.com/dongsheng123132/clifleet/releases/download/{tag}/$f"; then
+    sudo -n mv /tmp/$f "$D/" && echo "ok $f"
+  else
+    echo "FAIL $f"
+  fi
+done
+sudo -n chown -R root:root "$D"
+sudo -n find "$D" -type f -exec chmod 644 {{}} \\;
+ls -lh "$D" | tail -n +2 | awk '{{print $5, $9}}'
+"""
+    out = run(["ssh", HOST, script]).stdout
+    print(out.rstrip())
+
+
 def verify() -> list[str]:
     failures: list[str] = []
     checks = {
         BASE_URL: ["CliFleet", "clifleet/assets/app.css"],
         BASE_URL + "compare.html": ["CliFleet vs cmux", "FAQPage"],
         BASE_URL + "assets/app.css": ["--tw-"],
+        BASE_URL + "version.json": ['"tag"', '"v'],
     }
     for url, needles in checks.items():
         try:
@@ -148,6 +211,11 @@ def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--dry-run", action="store_true", help="只生成到 .deploy/，不上传")
     ap.add_argument("--skip-verify", action="store_true", help="上传后不做 HTTP 验收")
+    ap.add_argument(
+        "--release",
+        action="store_true",
+        help="同时同步 version.json / SHA256SUMS / 安装包（发版后跑这个）",
+    )
     args = ap.parse_args()
 
     version = json.loads((ROOT / "package.json").read_text(encoding="utf-8"))["version"]
@@ -155,6 +223,9 @@ def main() -> int:
 
     files = stage_pages()
     print(f"staged {len(files)} page/script files + assets → {STAGE}")
+
+    if args.release:
+        write_version_and_checksums(version)
 
     problems = sanity_check(files)
     if problems:
@@ -167,6 +238,11 @@ def main() -> int:
     if args.dry_run:
         print("dry-run：未上传。检查 " + str(STAGE))
         return 0
+
+    # 发版顺序：先让安装包在位，再让 version.json 指过去（否则用户会拿到还不存在的 tag）
+    if args.release:
+        print("== 1/3 同步安装包到 /var/www/dl-root/download/clifleet ==")
+        sync_binaries(version)
 
     upload()
     print("uploaded + nginx -t OK")
