@@ -75,6 +75,29 @@
   （`uking:`/`dsh:`/`new:`）或统一 `crypto.randomUUID()`。
 - **DSH 导入只导路径不导会话**：设计边缘非 bug；schema 未真机验证是兼容性缺口，建议加 try/catch 防 parse 崩溃静默。
 
+## v0.7.0 新增（2026-11-10）
+
+### 终端体验（对标 cmux 的三件事）
+- **未读 / 响铃**：`useTermGroup.ts` 里 `markUnread` / `markBell` / `clearUnread`。后台标签来数据 → 未读点；
+  `term.onBell` → 红点，且窗口失焦时 `requestUserAttention(Critical)`（需要 capability
+  `core:window:allow-request-user-attention`，少这条会静默不响）。恢复布局时 1.2s 后统一清一次，
+  避免 shell 提示符点亮一排未读。
+- **标签恢复**：localStorage `clifleet.term.tabs.v1` = `{ [normDir(dir)]: { count, active } }`，上限 8。
+  恢复后 200ms 把焦点抢回目标标签（`newTerm` 的 50ms 会把焦点给最后建的那个）。
+  手动关光标签（`closeTerm` 里 arr 变空）→ `removeTabRecord`，下次干净开一个；卸载清理不删记录。
+- **应用快捷键**：`keymap.ts::appKeyAction` 纯函数 + `TermPanel` 的 window 捕获监听。
+  mac 纯 Cmd、Win/Linux 纯 Ctrl；**xterm 的 `.xterm-helper-textarea` 要放行**（否则终端聚焦时快捷键全失效），
+  只对行内 INPUT/TEXTAREA/contentEditable 让位。
+
+### 发布与站点
+- `release.yml` 的 `push.branches` 已含 `main` 与 `feat/**`（原来只挂 `feat/minimal-terminal`，主干没闸门）。
+- 官网两页：`site/index.html` + `site/compare.html`（双语、JSON-LD、canonical/hreflang、
+  `robots.txt` 放行 AI 爬虫、`sitemap.xml`）。Vercel 项目 `hfshfgs-projects/clifleet`，`site/.vercel` 已 gitignore。
+- 国内镜像同步用 `python3 scripts/sync-domestic.py`（Mac 可跑；旧的 ps1 只有 Windows 能跑）：
+  默认同步页面（自动把 `/`、`/compare`、`/assets/` 重写成 `/clifleet/` 前缀，自检不过拒绝上传）；
+  发版后加 `--release` 同步 version.json / SHA256SUMS / 安装包，顺序是「二进制 → version.json → 页面」。
+- 成熟度清单 `docs/MATURITY.md`；首发推广包 `docs/PROMOTION.md`（被 .gitignore，仅本地）。
+
 ## 常用命令
 
 ```bash
