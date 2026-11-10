@@ -42,10 +42,15 @@ Most agent terminals (cmux, CliDeck, Warp, the official Codex app) bundle an age
 
 If you want built-in orchestration — automatic hand-offs between agents, mobile remote, cost dashboards — CliDeck or Conductor already do that, and they do it well. CliFleet only gives you the window, and stays out of the way.
 
+Honest side-by-side with the neighbours (cmux, Conductor, Claude Squad, Emdash), including where CliFleet loses: **[/compare](https://clifleet.vercel.app/compare)**.
+
 ## Highlights
 
 - **🗂️ Folder-based projects** — one folder per project on the left; pick a folder and it becomes a project. Click the path to copy it, or open the folder in your file explorer.
 - **🖥️ Real multi-terminal tabs** — each tab is a real PTY (`portable_pty`) rendered by xterm.js with **WebGL**, smooth under high-frequency TUI repaints. Switching tabs/projects keeps processes running. Closing a terminal **kills the whole child-process tree** — no orphaned `pwsh`/`claude` processes piling up.
+- **🔔 Knows which tab needs you** — output in a background tab lights a small dot; a terminal bell lights a red dot and bounces the dock / flashes the taskbar when the window is behind. Clicking the tab clears it. No more polling five tabs to find the one that finished.
+- **🧷 Remembers your layout** — each project reopens with the same tabs and the same active tab (up to 8). Closing every tab on purpose clears the record, so "start clean" is one gesture away.
+- **⌨️ Shortcuts that don't fight the shell** — macOS `⌘T` `⌘W` `⌘⇧[` `⌘⇧]` `⌘1…9`; Windows/Linux `Ctrl+Shift+T` `Ctrl+Shift+W` `Ctrl+Tab` `Ctrl+1…9`. Everything the shell owns (`Ctrl+T`, `Ctrl+W`, `⌘C`, `Ctrl+Shift+C`…) still reaches the PTY, and shortcuts step aside while you type in an inline field.
 - **⚡ Works with your CLIs** — PATH fallback dirs (npm global, `~/bin`, homebrew…) are **appended, never prepended**, so your preferred CLI implementations keep priority. `claude` / `codex` just work.
 - **⌨️ Terminal that's actually usable** — Ctrl/Cmd+C copy with selection, Ctrl+V / Shift+Insert / right-click paste, select-to-copy, adjustable font (`Ctrl ±`), drag & drop files/folders to insert paths, and a soft reset (`Ctrl+Shift+R`) that clears TUI crash residue (mouse garbage, screen artifacts, lost cursor) without touching your shell.
 - **🚀 Custom quick commands** — launch your favorite CLIs with one click; add, rename, or remove buttons (stored locally).
